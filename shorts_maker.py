@@ -2,7 +2,7 @@ import os
 import time
 import requests
 import json
-import sqlite3
+import random
 import urllib.parse
 import xml.etree.ElementTree as ET
 from gtts import gTTS
@@ -21,34 +21,17 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
 
-def init_db():
-    conn = sqlite3.connect('shorts_history.db')
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS history (topic TEXT UNIQUE)''')
-    conn.commit()
-    return conn
-
-def is_topic_used(conn, topic):
-    c = conn.cursor()
-    c.execute("SELECT 1 FROM history WHERE topic=?", (topic,))
-    return c.fetchone() is not None
-
-def mark_topic_used(conn, topic):
-    c = conn.cursor()
-    c.execute("INSERT INTO history (topic) VALUES (?)", (topic,))
-    conn.commit()
-
-def get_fresh_topic(conn):
+def get_fresh_topic():
     print("\n🌍 Scraping Google for real-time viral topics...")
     try:
         url = 'https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en'
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         tree = ET.parse(urllib.request.urlopen(req))
         trends = [item.text.split(" - ")[0] for item in tree.getroot().findall('./channel/item/title')]
-        for topic in trends:
-            if not is_topic_used(conn, topic):
-                print(f"🎯 Locked Fresh Topic: {topic}")
-                return topic
+        
+        chosen_topic = random.choice(trends[:20])
+        print(f"🎯 Locked Fresh Topic: {chosen_topic}")
+        return chosen_topic
     except: pass
     return "The Hidden Secrets of World History"
 
@@ -144,9 +127,12 @@ def edit_short(audio_file, scenes, target_w=1080, target_h=1920):
     return out_name
 
 def upload_to_youtube(video_file, seo):
-    if not os.path.exists("client_secrets.json"): return False
+    if not os.path.exists("token.json"): 
+        print("❌ CRITICAL: token.json not found! Cannot upload to YouTube.")
+        return False
+        
     scopes = ["https://www.googleapis.com/auth/youtube.upload"]
-    creds = Credentials.from_authorized_user_file("token.json", scopes) if os.path.exists("token.json") else None
+    creds = Credentials.from_authorized_user_file("token.json", scopes)
     youtube = googleapiclient.discovery.build("youtube", "v3", credentials=creds)
     tag_list = [t.strip() for t in seo['tags'].split(',')]
     
@@ -155,20 +141,20 @@ def upload_to_youtube(video_file, seo):
         "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False}
     }
     try:
+        print(f"📤 Uploading {video_file} to YouTube...")
         youtube.videos().insert(part="snippet,status", body=body, media_body=MediaFileUpload(video_file, chunksize=-1, resumable=True)).execute()
+        print("✅ SUCCESS! Video is live.")
         return True
-    except: return False
+    except Exception as e: 
+        print(f"❌ YouTube Upload Failed: {e}")
+        return False
 
 def main():
-    db_conn = init_db()
-    topic = get_fresh_topic(db_conn)
+    topic = get_fresh_topic()
     script_data = generate_master_script(topic)
     voice_file = generate_voice(script_data['scenes'])
     final_video = edit_short(voice_file, script_data['scenes'])
-    
-    # 🚨 NO MORE YES/NO QUESTION. IT UPLOADS AUTOMATICALLY.
-    if upload_to_youtube(final_video, script_data['seo']):
-        mark_topic_used(db_conn, topic)
+    upload_to_youtube(final_video, script_data['seo'])
 
 if __name__ == "__main__":
     main()
