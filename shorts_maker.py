@@ -8,7 +8,8 @@ import xml.etree.ElementTree as ET
 from gtts import gTTS
 
 from moviepy.editor import VideoFileClip, ImageClip, AudioFileClip, concatenate_videoclips
-import moviepy.video.fx.all as vfx
+# Safe loop import to bypass cloud bugs
+from moviepy.video.fx.loop import loop as vfx_loop
 
 import google_auth_oauthlib.flow
 import googleapiclient.discovery
@@ -16,7 +17,6 @@ from googleapiclient.http import MediaFileUpload
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 
-# 🚨 PULLING SECRETS FROM GITHUB INSTEAD OF HARDCODING
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
@@ -113,11 +113,10 @@ def edit_short(audio_file, scenes, target_w=1080, target_h=1920):
         if m_type == "video":
             c = VideoFileClip(file).without_audio()
             c = smart_crop_to_tiktok(c)
-            c = vfx.loop(c, duration=dur_per_scene) if c.duration < dur_per_scene else c.subclip(0, dur_per_scene)
+            c = vfx_loop(c, duration=dur_per_scene) if c.duration < dur_per_scene else c.subclip(0, dur_per_scene)
         else:
             c = ImageClip(file)
             c = smart_crop_to_tiktok(c).set_duration(dur_per_scene)
-        c = c.fx(vfx.fadein, 0.3)
         clips.append(c)
 
     final_video = concatenate_videoclips(clips, method="compose").set_audio(audio)
