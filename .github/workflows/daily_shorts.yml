@@ -8,7 +8,9 @@ import xml.etree.ElementTree as ET
 from gtts import gTTS
 
 from moviepy.editor import VideoFileClip, ImageClip, AudioFileClip, concatenate_videoclips
-import moviepy.video.fx.all as vfx
+
+# 🚨 CLOUD BUG FIX: We safely import 'loop' directly to bypass the broken 'vfx.all' library
+from moviepy.video.fx.loop import loop as vfx_loop
 
 import google_auth_oauthlib.flow
 import googleapiclient.discovery
@@ -16,12 +18,10 @@ from googleapiclient.http import MediaFileUpload
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 
-# 🚨 PULLING SECRETS FROM GITHUB INSTEAD OF HARDCODING
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
 
-# 🚨 CLOUD UPDATE: No more database. Random trend selector ensures fresh content.
 def get_fresh_topic():
     print("\n🌍 Scraping Google for real-time viral topics...")
     try:
@@ -30,7 +30,6 @@ def get_fresh_topic():
         tree = ET.parse(urllib.request.urlopen(req))
         trends = [item.text.split(" - ")[0] for item in tree.getroot().findall('./channel/item/title')]
         
-        # Pick a random topic from the top 20 trending stories
         chosen_topic = random.choice(trends[:20])
         print(f"🎯 Locked Fresh Topic: {chosen_topic}")
         return chosen_topic
@@ -115,11 +114,13 @@ def edit_short(audio_file, scenes, target_w=1080, target_h=1920):
         if m_type == "video":
             c = VideoFileClip(file).without_audio()
             c = smart_crop_to_tiktok(c)
-            c = vfx.loop(c, duration=dur_per_scene) if c.duration < dur_per_scene else c.subclip(0, dur_per_scene)
+            # Safe loop using direct import
+            c = vfx_loop(c, duration=dur_per_scene) if c.duration < dur_per_scene else c.subclip(0, dur_per_scene)
         else:
             c = ImageClip(file)
             c = smart_crop_to_tiktok(c).set_duration(dur_per_scene)
-        c = c.fx(vfx.fadein, 0.3)
+            
+        # 🚨 DELETED THE BUGGY FADE-IN EFFECT. USING FAST, ENGAGING HARD CUTS.
         clips.append(c)
 
     final_video = concatenate_videoclips(clips, method="compose").set_audio(audio)
@@ -156,7 +157,6 @@ def main():
     script_data = generate_master_script(topic)
     voice_file = generate_voice(script_data['scenes'])
     final_video = edit_short(voice_file, script_data['scenes'])
-    
     upload_to_youtube(final_video, script_data['seo'])
 
 if __name__ == "__main__":
