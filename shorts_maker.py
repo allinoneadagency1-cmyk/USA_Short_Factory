@@ -7,9 +7,12 @@ import urllib.parse
 import xml.etree.ElementTree as ET
 from gtts import gTTS
 
-# 🚨 BUG FIX: We deleted the broken audio import and now pull 'afx' safely from the editor
-from moviepy.editor import VideoFileClip, ImageClip, AudioFileClip, CompositeAudioClip, CompositeVideoClip, TextClip, ColorClip, afx
+from moviepy.editor import VideoFileClip, ImageClip, AudioFileClip, CompositeAudioClip, CompositeVideoClip, TextClip, ColorClip
 from moviepy.video.fx.loop import loop as vfx_loop
+
+# 🚨 THE REAL BUG FIX: Importing audio effects safely and directly from their source files
+from moviepy.audio.fx.volumex import volumex as afx_volumex
+from moviepy.audio.fx.audio_loop import audio_loop as afx_audio_loop
 
 import google_auth_oauthlib.flow
 import googleapiclient.discovery
@@ -103,10 +106,10 @@ def generate_voice_and_audio(scenes, bgm_keyword):
     
     if bgm_file:
         try:
-            # 🚨 BUG FIX: Using the safely imported afx module
-            bgm = AudioFileClip(bgm_file).fx(afx.volumex, 0.08)
+            # 🚨 Safely applying volume and loop effects using direct imports
+            bgm = afx_volumex(AudioFileClip(bgm_file), 0.08)
             if bgm.duration < voice.duration:
-                bgm = afx.audio_loop(bgm, duration=voice.duration)
+                bgm = afx_audio_loop(bgm, duration=voice.duration)
             else:
                 bgm = bgm.subclip(0, voice.duration)
                 
