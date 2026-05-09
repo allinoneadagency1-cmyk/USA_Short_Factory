@@ -17,43 +17,46 @@ from google.oauth2.credentials import Credentials
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")
+PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
 
 def get_fresh_topic():
-    print("\n🌍 Scraping Google for real-time trending news...")
+    print("\n🌍 Scraping Google for Viral News...")
     try:
         url = 'https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en'
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         tree = ET.parse(urllib.request.urlopen(req))
         trends = [item.text.split(" - ")[0] for item in tree.getroot().findall('./channel/item/title')]
-        chosen_topic = random.choice(trends[:20])
-        print(f"🎯 Locked Fresh Topic: {chosen_topic}")
+        chosen_topic = random.choice(trends[:15]) # Tighter focus on top news
+        print(f"🎯 Locked Viral Topic: {chosen_topic}")
         return chosen_topic
     except: pass
-    return "The Hidden Secrets of World History"
+    return "Shocking Secrets of the Billionaire Mindset"
 
 def generate_master_script(topic):
+    # 🚨 VIRAL PROMPT: Forces high-retention hooks and fast pacing
     prompt = f"""
-    You are a professional YouTube Shorts director specializing in cinematic storytelling. Write a gripping 150-word script about '{topic}'.
+    You are a viral YouTube Shorts scriptwriter. Write a fast-paced, highly controversial or shocking 150-word script about '{topic}'.
     
-    RULES:
-    1. FACTUAL ACCURACY: Only use verified facts. No exaggerations.
-    2. VISUAL KEYWORDS: Provide a highly descriptive visual keyword for EACH scene (e.g., 'Photorealistic map of Iran', 'Cinematic lighting on Wall Street', 'Close up of a generic politician').
+    RULES TO GO VIRAL:
+    1. THE HOOK: The first sentence MUST be a shocking statement or question that makes people stop scrolling instantly.
+    2. RETENTION: Build intense curiosity. Use short, punchy sentences.
+    3. KEYWORDS: Provide ONE simple, highly generic noun (e.g., 'city', 'police', 'money', 'crowd', 'fire') for the visual keyword of each scene.
     
     Structure the JSON exactly like this:
     {{
         "seo": {{
-            "title": "Engaging Title under 60 chars",
+            "title": "Insane Clickbait Title under 60 chars",
             "description": "Engaging description with 3 hashtags",
             "tags": "exactly 15 comma-separated highly searched keywords"
         }},
         "scenes": [
             {{
                 "text": "The spoken text...",
-                "keyword": "highly descriptive visual prompt"
+                "keyword": "generic single word"
             }}
         ]
     }}
-    Make exactly 10 scenes! Return ONLY valid JSON.
+    Make exactly 10 to 12 scenes! Return ONLY valid JSON.
     """
     headers = {"Authorization": f"Bearer {OPENROUTER_API_KEY.strip()}", "Content-Type": "application/json"}
     
@@ -81,8 +84,8 @@ def generate_voice(scenes):
     return "voice.mp3"
 
 def generate_ai_image(prompt, index):
-    print(f"🎨 Generating custom copyright-free AI image for: {prompt}")
-    safe_prompt = urllib.parse.quote(f"Photorealistic vertical 9:16 highly detailed image of {prompt}, cinematic lighting, 8k resolution, documentary style")
+    print(f"🎨 Generating unique AI Image for: {prompt}")
+    safe_prompt = urllib.parse.quote(f"Ultra realistic vertical 9:16 cinematic image of {prompt}, dramatic lighting, 8k")
     url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1080&height=1920&nologo=true"
     try:
         resp = requests.get(url, timeout=20)
@@ -90,25 +93,40 @@ def generate_ai_image(prompt, index):
             fpath = f"ai_scene_{index}.jpg"
             with open(fpath, "wb") as f: f.write(resp.content)
             return fpath, "image"
-    except Exception as e:
-        print(f"AI Image Gen failed: {e}")
+    except: pass
     return None, None
 
 def download_media(keyword, index):
-    # Try Pexels first for real stock video
-    headers = {"Authorization": PEXELS_API_KEY}
+    simple_kw = urllib.parse.quote(keyword.split(" ")[0])
+    
+    # 1. PIXABAY (Deep Randomization)
     try:
-        simple_keyword = keyword.split(" ")[0] # Use first word for stock video
-        url = f"https://api.pexels.com/videos/search?query={urllib.parse.quote(simple_keyword)}&orientation=portrait&per_page=3"
-        resp = requests.get(url, headers=headers, timeout=10).json()
-        if resp.get('videos'):
-            link = max(resp['videos'][0]['video_files'], key=lambda x: x.get('width', 0))['link']
-            fpath = f"scene_{index}.mp4"
-            with open(fpath, "wb") as f: f.write(requests.get(link).content)
-            return fpath, "video"
+        if PIXABAY_API_KEY:
+            url = f"https://pixabay.com/api/videos/?key={PIXABAY_API_KEY}&q={simple_kw}&orientation=vertical&per_page=15"
+            resp = requests.get(url, timeout=10).json()
+            if resp.get('hits'):
+                video = random.choice(resp['hits']) # Pick a random video from the top 15
+                link = video['videos']['medium']['url']
+                fpath = f"scene_{index}.mp4"
+                with open(fpath, "wb") as f: f.write(requests.get(link).content)
+                return fpath, "video"
     except: pass
 
-    # ADVANCED UPGRADE: If no video is found, generate a 100% custom AI image
+    # 2. PEXELS (Deep Randomization)
+    try:
+        if PEXELS_API_KEY:
+            headers = {"Authorization": PEXELS_API_KEY}
+            url = f"https://api.pexels.com/videos/search?query={simple_kw}&orientation=portrait&per_page=15"
+            resp = requests.get(url, headers=headers, timeout=10).json()
+            if resp.get('videos'):
+                video = random.choice(resp['videos']) # Pick a random video from the top 15
+                link = max(video['video_files'], key=lambda x: x.get('width', 0))['link']
+                fpath = f"scene_{index}.mp4"
+                with open(fpath, "wb") as f: f.write(requests.get(link).content)
+                return fpath, "video"
+    except: pass
+
+    # 3. AI IMAGE FALLBACK
     return generate_ai_image(keyword, index)
 
 def smart_crop_to_tiktok(clip, target_w=1080, target_h=1920):
@@ -127,8 +145,7 @@ def edit_short(audio_file, scenes, target_w=1080, target_h=1920):
         file, m_type = download_media(scene['keyword'], i)
         
         if not file: 
-            print(f"⚠️ Safe Failsafe triggered for scene {i}.")
-            c = ColorClip(size=(target_w, target_h), color=(20, 20, 20)).set_duration(dur_per_scene)
+            c = ColorClip(size=(target_w, target_h), color=(30, 30, 30)).set_duration(dur_per_scene)
         elif m_type == "video":
             c = VideoFileClip(file).without_audio()
             c = smart_crop_to_tiktok(c)
@@ -140,7 +157,7 @@ def edit_short(audio_file, scenes, target_w=1080, target_h=1920):
         clips.append(c)
 
     final_video = concatenate_videoclips(clips, method="compose").set_audio(audio)
-    out_name = f"ADVANCED_SHORT_{int(time.time())}.mp4"
+    out_name = f"VIRAL_SHORT_{int(time.time())}.mp4"
     final_video.write_videofile(out_name, fps=30, codec="libx264", audio_codec="aac", logger=None)
     audio.close(); final_video.close()
     return out_name
@@ -153,7 +170,7 @@ def upload_to_youtube(video_file, seo):
     tag_list = [t.strip() for t in seo['tags'].split(',')]
     
     body = {
-        "snippet": {"title": seo['title'], "description": seo['description'] + "\n\n#shorts #viral", "tags": tag_list[:15], "categoryId": "24"}, 
+        "snippet": {"title": seo['title'], "description": seo['description'] + "\n\n#shorts #viral #news", "tags": tag_list[:15], "categoryId": "25"}, 
         "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False}
     }
     try:
