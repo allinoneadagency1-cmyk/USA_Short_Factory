@@ -7,9 +7,9 @@ import urllib.parse
 import xml.etree.ElementTree as ET
 from gtts import gTTS
 
-from moviepy.editor import VideoFileClip, ImageClip, AudioFileClip, CompositeAudioClip, CompositeVideoClip, TextClip, ColorClip
+# 🚨 BUG FIX: We deleted the broken audio import and now pull 'afx' safely from the editor
+from moviepy.editor import VideoFileClip, ImageClip, AudioFileClip, CompositeAudioClip, CompositeVideoClip, TextClip, ColorClip, afx
 from moviepy.video.fx.loop import loop as vfx_loop
-import moviepy.audio.fx.all as afx
 
 import google_auth_oauthlib.flow
 import googleapiclient.discovery
@@ -34,7 +34,6 @@ def get_fresh_topic():
     return "The Hidden Cost of Living in the USA"
 
 def generate_master_script(topic):
-    # 🚨 ADVANCED PROMPT: Asks for Hook, Script, BGM, and Footage Keywords
     prompt = f"""
     You are a viral YouTube Shorts scriptwriter. Write a highly engaging 150-word script about '{topic}'.
     
@@ -104,9 +103,8 @@ def generate_voice_and_audio(scenes, bgm_keyword):
     
     if bgm_file:
         try:
-            # Drop BGM volume to 8% so it doesn't overpower the voice
+            # 🚨 BUG FIX: Using the safely imported afx module
             bgm = AudioFileClip(bgm_file).fx(afx.volumex, 0.08)
-            # Loop BGM if it's shorter than voice, or cut it if it's longer
             if bgm.duration < voice.duration:
                 bgm = afx.audio_loop(bgm, duration=voice.duration)
             else:
@@ -147,7 +145,6 @@ def download_media(keyword, index):
                 with open(fpath, "wb") as f: f.write(requests.get(link).content)
                 return fpath, "video"
     except: pass
-    # Black Screen Failsafe: Fallback to AI Image instantly if video fails
     return generate_ai_image(keyword, index)
 
 def smart_crop_to_tiktok(clip, target_w=1080, target_h=1920):
@@ -158,7 +155,6 @@ def smart_crop_to_tiktok(clip, target_w=1080, target_h=1920):
         return clip.resize(width=target_w).crop(y_center=clip.h/2, height=target_h)
 
 def create_subtitle_clip(text, duration, target_w):
-    # Generates a bold, readable text overlay for the scene
     try:
         txt_clip = TextClip(text, fontsize=65, color='white', font='Liberation-Sans-Bold', stroke_color='black', stroke_width=2.5, method='caption', size=(target_w - 100, None))
         return txt_clip.set_position(('center', 'center')).set_duration(duration)
@@ -183,11 +179,9 @@ def edit_short(audio_file, scenes, target_w=1080, target_h=1920):
                 c = ImageClip(file)
                 c = smart_crop_to_tiktok(c).set_duration(dur_per_scene)
             else:
-                # Absolute last resort to prevent black screen
                 c = generate_ai_image("abstract background", i)
                 c = ImageClip(c[0]).set_duration(dur_per_scene) if c[0] else ColorClip(size=(target_w, target_h), color=(50, 50, 50)).set_duration(dur_per_scene)
             
-            # 🔥 Add the Subtitles over the video clip
             sub_clip = create_subtitle_clip(scene['text'], dur_per_scene, target_w)
             if sub_clip:
                 c = CompositeVideoClip([c, sub_clip])
@@ -222,7 +216,6 @@ def main():
     topic = get_fresh_topic()
     script_data = generate_master_script(topic)
     
-    # Pass the requested BGM keyword to the audio generator
     bgm_keyword = script_data.get('bgm_keyword', 'suspense')
     final_audio = generate_voice_and_audio(script_data['scenes'], bgm_keyword)
     
