@@ -6,7 +6,6 @@ import random
 import urllib.parse
 import xml.etree.ElementTree as ET
 
-# 🚨 THE FIX: Added 'concatenate_audioclips' to loop music manually using math!
 from moviepy.editor import VideoFileClip, ImageClip, AudioFileClip, CompositeAudioClip, CompositeVideoClip, TextClip, ColorClip, concatenate_audioclips, concatenate_videoclips
 from moviepy.video.fx.loop import loop as vfx_loop
 from moviepy.audio.fx.volumex import volumex as afx_volumex
@@ -21,44 +20,45 @@ PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
 
 def get_fresh_topic():
-    print("\n🌍 Scraping Google for Viral News...")
+    print("\n🌍 Scraping Google for Viral Angles...")
     try:
         url = 'https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en'
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         tree = ET.parse(urllib.request.urlopen(req))
         trends = [item.text.split(" - ")[0] for item in tree.getroot().findall('./channel/item/title')]
-        chosen_topic = random.choice(trends[:10]) 
+        chosen_topic = random.choice(trends[:8]) # Hyper-focus on only the biggest 8 topics
         print(f"🎯 Locked Viral Topic: {chosen_topic}")
         return chosen_topic
     except: pass
-    return "The Hidden Financial Crisis Nobody is Talking About"
+    return "The terrifying truth about your bank account"
 
 def generate_master_script(topic):
+    # 🚨 THE VIRAL UPGRADE: Alex Hormozi / MrBeast style psychological scripting
     prompt = f"""
-    You are a viral YouTube Shorts creator. Write a highly controversial, fast-paced 150-word mini-documentary script about '{topic}'.
+    You are an elite YouTube Shorts scriptwriter. Write a 150-word script about '{topic}' in the style of Alex Hormozi or a fast-paced documentary.
     
     RULES TO GO VIRAL:
-    1. THE HOOK: Scene 1 MUST be a shocking 3-second statement that creates massive curiosity.
-    2. THE STORY: Expose a secret, reveal a hidden truth, or explain why people are wrong about this topic.
-    3. BGM: Provide a 1-word keyword for background music (e.g., 'suspense', 'dark', 'epic').
-    4. VISUALS: 'keyword' must be ONE single, highly abstract noun (e.g., 'money', 'shadow', 'city', 'documents', 'police').
+    1. THE HOOK (Scene 1): A mind-blowing 3-second statement that breaks a common belief. (e.g., "Everything you know about X is a lie.")
+    2. RETENTION: Fast-paced, punchy sentences. High energy. Reveal a secret.
+    3. BGM: Provide a 1-word keyword for intense background music (e.g., 'phonk', 'suspense', 'dark', 'epic').
+    4. VISUALS: 'keyword' must be ONE specific noun (e.g., 'mansion', 'hacker', 'wallstreet', 'police').
     
     Structure the JSON exactly like this:
     {{
         "seo": {{
-            "title": "Insane Clickbait Title under 60 chars",
+            "title": "Shocking Clickbait Title under 60 chars",
             "description": "Engaging description with 3 hashtags",
-            "tags": "exactly 15 comma-separated highly searched keywords"
+            "tags": "15 highly searched comma-separated keywords"
         }},
         "bgm_keyword": "suspense",
         "scenes": [
             {{
                 "text": "The spoken text...",
-                "keyword": "shadow"
+                "keyword": "hacker"
             }}
         ]
     }}
-    Make exactly 12 scenes for fast-paced editing! Return ONLY valid JSON.
+    Make exactly 12 scenes! Return ONLY valid JSON.
     """
     headers = {"Authorization": f"Bearer {OPENROUTER_API_KEY.strip()}", "Content-Type": "application/json"}
     
@@ -93,10 +93,9 @@ def download_bgm(keyword):
     return None
 
 def generate_voice_and_audio(scenes, bgm_keyword):
-    print("🎤 Generating Ultra-Realistic AI Voiceover...")
+    print("🎤 Generating Pro AI Voiceover...")
     full_script = " ".join([scene['text'] for scene in scenes])
     
-    # Using Microsoft Edge TTS for TikTok-quality voices
     clean_script = full_script.replace('"', "'")
     os.system(f'edge-tts --voice "en-US-ChristopherNeural" --text "{clean_script}" --write-media voice.mp3')
     
@@ -109,9 +108,9 @@ def generate_voice_and_audio(scenes, bgm_keyword):
     
     if bgm_file:
         try:
-            bgm = afx_volumex(AudioFileClip(bgm_file), 0.08)
+            # Drop BGM volume to 7% so the voice is extremely clear
+            bgm = afx_volumex(AudioFileClip(bgm_file), 0.07)
             
-            # 🚨 BULLETPROOF AUDIO LOOPING USING MATH (NO BUGS)
             if bgm.duration < voice.duration:
                 loops_needed = int(voice.duration / bgm.duration) + 1
                 bgm = concatenate_audioclips([bgm] * loops_needed)
@@ -122,13 +121,14 @@ def generate_voice_and_audio(scenes, bgm_keyword):
             final_audio.write_audiofile("final_audio.mp3", fps=44100, logger=None)
             voice.close(); bgm.close()
             return "final_audio.mp3"
-        except Exception as e: 
-            print(f"BGM Error: {e}")
+        except: pass
             
     return "voice.mp3"
 
 def generate_ai_image(prompt, index):
-    safe_prompt = urllib.parse.quote(f"Ultra realistic vertical 9:16 cinematic image of {prompt}, dark dramatic lighting, 8k")
+    # 🚨 VISUAL UPGRADE: Forcing the AI to draw cinematic, Hollywood-quality images
+    print(f"🎨 Generating Cinematic 8K Image for: {prompt}")
+    safe_prompt = urllib.parse.quote(f"Shot on RED camera, photorealistic, highly detailed, cinematic lighting, 8k resolution, vertical 9:16, {prompt}")
     url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1080&height=1920&nologo=true"
     try:
         resp = requests.get(url, timeout=20)
@@ -161,10 +161,13 @@ def smart_crop_to_tiktok(clip, target_w=1080, target_h=1920):
     else:
         return clip.resize(width=target_w).crop(y_center=clip.h/2, height=target_h)
 
-def create_subtitle_clip(text, duration, target_w):
+def create_subtitle_clip(text, duration, target_w, target_h):
     try:
-        txt_clip = TextClip(text, fontsize=75, color='yellow', font='Liberation-Sans-Bold', stroke_color='black', stroke_width=3, method='caption', size=(target_w - 80, None))
-        return txt_clip.set_position(('center', 'center')).set_duration(duration)
+        # 🚨 PRO CAPTION UPGRADE: Massive font, thick black stroke, moved to the TikTok "Safe Zone"
+        txt_clip = TextClip(text, fontsize=85, color='yellow', font='Liberation-Sans-Bold', stroke_color='black', stroke_width=4.5, method='caption', size=(target_w - 100, None))
+        
+        # Position '0.6' puts it exactly 60% down the screen, out of the middle, looking professional.
+        return txt_clip.set_position(('center', 0.6), relative=True).set_duration(duration)
     except: return None
 
 def edit_short(audio_file, scenes, target_w=1080, target_h=1920):
@@ -184,10 +187,10 @@ def edit_short(audio_file, scenes, target_w=1080, target_h=1920):
                 c = ImageClip(file)
                 c = smart_crop_to_tiktok(c).set_duration(dur_per_scene)
             else:
-                c = generate_ai_image("abstract background", i)
-                c = ImageClip(c[0]).set_duration(dur_per_scene) if c[0] else ColorClip(size=(target_w, target_h), color=(10, 10, 10)).set_duration(dur_per_scene)
+                c = generate_ai_image("dark cinematic abstract background", i)
+                c = ImageClip(c[0]).set_duration(dur_per_scene) if c[0] else ColorClip(size=(target_w, target_h), color=(15, 15, 15)).set_duration(dur_per_scene)
             
-            sub_clip = create_subtitle_clip(scene['text'], dur_per_scene, target_w)
+            sub_clip = create_subtitle_clip(scene['text'], dur_per_scene, target_w, target_h)
             if sub_clip:
                 c = CompositeVideoClip([c, sub_clip])
                 
@@ -195,7 +198,7 @@ def edit_short(audio_file, scenes, target_w=1080, target_h=1920):
         except Exception as e: print(f"Skipping scene {i} error: {e}")
 
     final_video = concatenate_videoclips(clips, method="compose").set_audio(audio)
-    out_name = f"VIRAL_PRO_{int(time.time())}.mp4"
+    out_name = f"HOLLYWOOD_PRO_{int(time.time())}.mp4"
     final_video.write_videofile(out_name, fps=30, codec="libx264", audio_codec="aac", logger=None)
     audio.close(); final_video.close()
     return out_name
@@ -208,7 +211,7 @@ def upload_to_youtube(video_file, seo):
     tag_list = [t.strip() for t in seo['tags'].split(',')]
     
     body = {
-        "snippet": {"title": seo['title'], "description": seo['description'] + "\n\n#shorts #viral #news", "tags": tag_list[:15], "categoryId": "25"}, 
+        "snippet": {"title": seo['title'], "description": seo['description'] + "\n\n#shorts #viral #finance #news", "tags": tag_list[:15], "categoryId": "25"}, 
         "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False}
     }
     try:
@@ -220,7 +223,7 @@ def main():
     topic = get_fresh_topic()
     script_data = generate_master_script(topic)
     
-    bgm_keyword = script_data.get('bgm_keyword', 'suspense')
+    bgm_keyword = script_data.get('bgm_keyword', 'epic')
     final_audio = generate_voice_and_audio(script_data['scenes'], bgm_keyword)
     
     final_video = edit_short(final_audio, script_data['scenes'])
