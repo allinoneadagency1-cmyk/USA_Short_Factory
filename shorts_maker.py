@@ -26,19 +26,19 @@ def get_fresh_topic():
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         tree = ET.parse(urllib.request.urlopen(req))
         trends = [item.text.split(" - ")[0] for item in tree.getroot().findall('./channel/item/title')]
-        chosen_topic = random.choice(trends[:8]) # Hyper-focus on only the biggest 8 topics
+        chosen_topic = random.choice(trends[:8])
         print(f"🎯 Locked Viral Topic: {chosen_topic}")
         return chosen_topic
-    except: pass
+    except:
+        pass
     return "The terrifying truth about your bank account"
 
 def generate_master_script(topic):
-    # 🚨 THE VIRAL UPGRADE: Alex Hormozi / MrBeast style psychological scripting
     prompt = f"""
     You are an elite YouTube Shorts scriptwriter. Write a 150-word script about '{topic}' in the style of Alex Hormozi or a fast-paced documentary.
     
     RULES TO GO VIRAL:
-    1. THE HOOK (Scene 1): A mind-blowing 3-second statement that breaks a common belief. (e.g., "Everything you know about X is a lie.")
+    1. THE HOOK (Scene 1): A mind-blowing 3-second statement that breaks a common belief.
     2. RETENTION: Fast-paced, punchy sentences. High energy. Reveal a secret.
     3. BGM: Provide a 1-word keyword for intense background music (e.g., 'phonk', 'suspense', 'dark', 'epic').
     4. VISUALS: 'keyword' must be ONE specific noun (e.g., 'mansion', 'hacker', 'wallstreet', 'police').
@@ -65,8 +65,10 @@ def generate_master_script(topic):
     try:
         models_resp = requests.get("https://openrouter.ai/api/v1/models").json()
         free_models = [m['id'] for m in models_resp.get('data', []) if str(m['id']).endswith(':free')][:3]
-        if not free_models: free_models = ["qwen/qwen-2-7b-instruct:free", "google/gemma-2-9b-it:free"]
-    except: free_models = ["qwen/qwen-2-7b-instruct:free", "google/gemma-2-9b-it:free"]
+        if not free_models: 
+            free_models = ["qwen/qwen-2-7b-instruct:free", "google/gemma-2-9b-it:free"]
+    except: 
+        free_models = ["qwen/qwen-2-7b-instruct:free", "google/gemma-2-9b-it:free"]
 
     url = "https://openrouter.ai/api/v1/chat/completions"
     for model in free_models:
@@ -76,7 +78,8 @@ def generate_master_script(topic):
             if response.status_code == 200:
                 clean_json = response.json()['choices'][0]['message']['content'].strip().replace("```json", "").replace("```", "").strip()
                 return json.loads(clean_json)
-        except: pass
+        except:
+            pass
     exit()
 
 def download_bgm(keyword):
@@ -87,9 +90,11 @@ def download_bgm(keyword):
             if resp.get('hits'):
                 link = resp['hits'][0]['audio_download']
                 fpath = "bgm.mp3"
-                with open(fpath, "wb") as f: f.write(requests.get(link).content)
+                with open(fpath, "wb") as f: 
+                    f.write(requests.get(link).content)
                 return fpath
-    except: pass
+    except:
+        pass
     return None
 
 def generate_voice_and_audio(scenes, bgm_keyword):
@@ -108,7 +113,6 @@ def generate_voice_and_audio(scenes, bgm_keyword):
     
     if bgm_file:
         try:
-            # Drop BGM volume to 7% so the voice is extremely clear
             bgm = afx_volumex(AudioFileClip(bgm_file), 0.07)
             
             if bgm.duration < voice.duration:
@@ -119,14 +123,15 @@ def generate_voice_and_audio(scenes, bgm_keyword):
                 
             final_audio = CompositeAudioClip([voice, bgm])
             final_audio.write_audiofile("final_audio.mp3", fps=44100, logger=None)
-            voice.close(); bgm.close()
+            voice.close()
+            bgm.close()
             return "final_audio.mp3"
-        except: pass
+        except:
+            pass
             
     return "voice.mp3"
 
 def generate_ai_image(prompt, index):
-    # 🚨 VISUAL UPGRADE: Forcing the AI to draw cinematic, Hollywood-quality images
     print(f"🎨 Generating Cinematic 8K Image for: {prompt}")
     safe_prompt = urllib.parse.quote(f"Shot on RED camera, photorealistic, highly detailed, cinematic lighting, 8k resolution, vertical 9:16, {prompt}")
     url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1080&height=1920&nologo=true"
@@ -134,9 +139,11 @@ def generate_ai_image(prompt, index):
         resp = requests.get(url, timeout=20)
         if resp.status_code == 200:
             fpath = f"ai_scene_{index}.jpg"
-            with open(fpath, "wb") as f: f.write(resp.content)
+            with open(fpath, "wb") as f: 
+                f.write(resp.content)
             return fpath, "image"
-    except: pass
+    except:
+        pass
     return None, None
 
 def download_media(keyword, index):
@@ -149,9 +156,11 @@ def download_media(keyword, index):
                 video = random.choice(resp['hits']) 
                 link = video['videos']['medium']['url']
                 fpath = f"scene_{index}.mp4"
-                with open(fpath, "wb") as f: f.write(requests.get(link).content)
+                with open(fpath, "wb") as f: 
+                    f.write(requests.get(link).content)
                 return fpath, "video"
-    except: pass
+    except:
+        pass
     return generate_ai_image(keyword, index)
 
 def smart_crop_to_tiktok(clip, target_w=1080, target_h=1920):
@@ -163,12 +172,10 @@ def smart_crop_to_tiktok(clip, target_w=1080, target_h=1920):
 
 def create_subtitle_clip(text, duration, target_w, target_h):
     try:
-        # 🚨 PRO CAPTION UPGRADE: Massive font, thick black stroke, moved to the TikTok "Safe Zone"
         txt_clip = TextClip(text, fontsize=85, color='yellow', font='Liberation-Sans-Bold', stroke_color='black', stroke_width=4.5, method='caption', size=(target_w - 100, None))
-        
-        # Position '0.6' puts it exactly 60% down the screen, out of the middle, looking professional.
         return txt_clip.set_position(('center', 0.6), relative=True).set_duration(duration)
-    except: return None
+    except:
+        return None
 
 def edit_short(audio_file, scenes, target_w=1080, target_h=1920):
     audio = AudioFileClip(audio_file)
@@ -195,16 +202,22 @@ def edit_short(audio_file, scenes, target_w=1080, target_h=1920):
                 c = CompositeVideoClip([c, sub_clip])
                 
             clips.append(c)
-        except Exception as e: print(f"Skipping scene {i} error: {e}")
+        
+        # 🚨 THE FIX: Perfectly formatted exception block with colons on the correct lines
+        except Exception as e:
+            print(f"Skipping scene {i} error: {e}")
 
     final_video = concatenate_videoclips(clips, method="compose").set_audio(audio)
     out_name = f"HOLLYWOOD_PRO_{int(time.time())}.mp4"
     final_video.write_videofile(out_name, fps=30, codec="libx264", audio_codec="aac", logger=None)
-    audio.close(); final_video.close()
+    audio.close()
+    final_video.close()
     return out_name
 
 def upload_to_youtube(video_file, seo):
-    if not os.path.exists("token.json"): return False
+    if not os.path.exists("token.json"): 
+        return False
+        
     scopes = ["https://www.googleapis.com/auth/youtube.upload"]
     creds = Credentials.from_authorized_user_file("token.json", scopes)
     youtube = googleapiclient.discovery.build("youtube", "v3", credentials=creds)
@@ -217,7 +230,8 @@ def upload_to_youtube(video_file, seo):
     try:
         youtube.videos().insert(part="snippet,status", body=body, media_body=MediaFileUpload(video_file, chunksize=-1, resumable=True)).execute()
         return True
-    except: return False
+    except: 
+        return False
 
 def main():
     topic = get_fresh_topic()
