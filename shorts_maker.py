@@ -34,6 +34,7 @@ def get_fresh_topic():
     return "The terrifying truth about your bank account"
 
 def generate_master_script(topic):
+    # 🚨 Notice the TRIPLE quotes below. They are required for multi-line text!
     prompt = f"""
     You are an elite YouTube Shorts scriptwriter. Write a 150-word script about '{topic}' in the style of Alex Hormozi or a fast-paced documentary.
     
@@ -202,8 +203,6 @@ def edit_short(audio_file, scenes, target_w=1080, target_h=1920):
                 c = CompositeVideoClip([c, sub_clip])
                 
             clips.append(c)
-        
-        # 🚨 THE FIX: Perfectly formatted exception block with colons on the correct lines
         except Exception as e:
             print(f"Skipping scene {i} error: {e}")
 
