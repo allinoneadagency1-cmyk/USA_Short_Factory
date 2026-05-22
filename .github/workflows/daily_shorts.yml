@@ -25,6 +25,7 @@ jobs:
 
       - name: Install Python Libraries
         run: pip install requests moviepy==1.0.3 Pillow==9.5.0 edge-tts google-auth-oauthlib google-api-python-client
+
       - name: Run Factory
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
