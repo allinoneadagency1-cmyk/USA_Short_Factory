@@ -1,0 +1,35 @@
+name: 2x Daily Long Video Factory
+
+on:
+  schedule:
+    # 🚨 THE FIX: 14 and 20 in UTC exactly matches 10:00 AM and 4:00 PM EST
+    - cron: '0 14,20 * * *'
+  workflow_dispatch:
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg imagemagick fonts-liberation
+          sudo sed -i 's/none/read,write/g' /etc/ImageMagick-6/policy.xml || true
+
+      - name: Install Python Libraries
+        run: pip install requests moviepy==1.0.3 Pillow==9.5.0 imageio-ffmpeg edge-tts google-auth-oauthlib google-api-python-client
+
+      - name: Run Long Factory
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+        run: python long_video_maker.py
