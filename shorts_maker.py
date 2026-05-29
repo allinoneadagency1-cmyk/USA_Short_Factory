@@ -5,7 +5,7 @@ import json
 import random
 import urllib.parse
 import xml.etree.ElementTree as ET
-import re  # 🚨 THE NEW UPGRADE: We imported 're' (Regular Expressions) to hunt down emojis
+import re
 
 from moviepy.editor import VideoFileClip, ImageClip, AudioFileClip, CompositeAudioClip, CompositeVideoClip, TextClip, ColorClip, concatenate_audioclips, concatenate_videoclips
 from moviepy.video.fx.loop import loop as vfx_loop
@@ -136,7 +136,6 @@ def generate_voice_and_audio(scenes, bgm_keyword):
 
 def generate_ai_image(prompt, index):
     if not prompt: prompt = "dark cinematic abstract"
-    print(f"🎨 Generating Cinematic 8K Image for: {prompt}")
     safe_prompt = urllib.parse.quote(f"Shot on RED camera, photorealistic, highly detailed, cinematic lighting, 8k resolution, vertical 9:16, {prompt}")
     url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1080&height=1920&nologo=true"
     try:
@@ -177,25 +176,20 @@ def smart_crop_to_tiktok(clip, target_w=1080, target_h=1920):
         return clip.resize(width=target_w).crop(y_center=clip.h/2, height=target_h)
 
 def create_subtitle_clip(text, duration, target_w, target_h):
-    if not text: return None
-    
-    # 🚨 EMOJI ASSASSIN: Strips out ALL emojis, weird symbols, and non-english characters!
-    # This guarantees ImageMagick will only ever receive pure alphabet letters.
     clean_text = re.sub(r'[^\x00-\x7F]+', '', str(text)).strip()
-    
-    if len(clean_text) < 1:
-        return None
+    if len(clean_text) < 1: return None
         
     try:
-        # 🚨 Removed the specific font requirement so the server uses a safe default
         txt_clip = TextClip(clean_text, fontsize=85, color='yellow', stroke_color='black', stroke_width=4.5, method='caption', size=(target_w - 100, None))
         
-        # 🚨 THE FINAL FAILSAFE: If the image is still 0x0 pixels, abort safely!
-        if txt_clip.w == 0 or txt_clip.h == 0:
-            return None
-            
+        # 🚨 THE PRE-RENDER SHIELD 🚨
+        # Force Python to evaluate the mask right now. If it's a corrupted 0x0 invisible 
+        # text block, it will throw the exact ValueError here, which we catch safely below!
+        txt_clip.get_frame(0)
+        
         return txt_clip.set_position(('center', 0.6), relative=True).set_duration(duration)
-    except:
+    except Exception as e:
+        print(f"Invisible char detected, subtitle safely skipped: {e}")
         return None
 
 def edit_short(audio_file, scenes, target_w=1080, target_h=1920):
@@ -210,24 +204,32 @@ def edit_short(audio_file, scenes, target_w=1080, target_h=1920):
         file, m_type = download_media(scene_keyword, i)
         
         try:
-            if m_type == "video":
+            if m_type == "video" and file:
                 c = VideoFileClip(file).without_audio()
                 c = smart_crop_to_tiktok(c)
                 c = vfx_loop(c, duration=dur_per_scene) if c.duration < dur_per_scene else c.subclip(0, dur_per_scene)
-            elif m_type == "image":
+            elif m_type == "image" and file:
                 c = ImageClip(file)
                 c = smart_crop_to_tiktok(c).set_duration(dur_per_scene)
             else:
-                c = generate_ai_image("dark cinematic abstract background", i)
-                c = ImageClip(c[0]).set_duration(dur_per_scene) if c[0] else ColorClip(size=(target_w, target_h), color=(15, 15, 15)).set_duration(dur_per_scene)
+                fallback, _ = generate_ai_image("dark cinematic abstract background", i)
+                c = ImageClip(fallback).set_duration(dur_per_scene) if fallback else ColorClip(size=(target_w, target_h), color=(15, 15, 15)).set_duration(dur_per_scene)
+            
+            # Pre-render the background just to be safe
+            c.get_frame(0)
             
             sub_clip = create_subtitle_clip(scene_text, dur_per_scene, target_w, target_h)
             if sub_clip:
                 c = CompositeVideoClip([c, sub_clip])
                 
             clips.append(c)
+            
         except Exception as e:
-            print(f"Skipping scene {i} error: {e}")
+            # 🚨 TIMELINE SHIELD: If a scene completely crashes, insert a solid color block
+            # so the video length doesn't break the audio sync at the end!
+            print(f"Skipping broken scene {i}: {e}")
+            safe_c = ColorClip(size=(target_w, target_h), color=(20, 20, 20)).set_duration(dur_per_scene)
+            clips.append(safe_c)
 
     final_video = concatenate_videoclips(clips, method="compose").set_audio(audio)
     out_name = f"HOLLYWOOD_PRO_{int(time.time())}.mp4"
