@@ -83,7 +83,6 @@ def generate_master_script(topic):
     exit()
 
 def download_bgm(keyword):
-    # 🚨 AI FAILSAFE: If the AI returns null, force it to 'epic'
     if not keyword:
         keyword = "epic"
     try:
@@ -102,7 +101,7 @@ def download_bgm(keyword):
 
 def generate_voice_and_audio(scenes, bgm_keyword):
     print("🎤 Generating Pro AI Voiceover...")
-    full_script = " ".join([scene.get('text', '') for scene in scenes])
+    full_script = " ".join([str(scene.get('text', '')).strip() for scene in scenes])
     
     clean_script = full_script.replace('"', "'")
     os.system(f'edge-tts --voice "en-US-ChristopherNeural" --text "{clean_script}" --write-media voice.mp3')
@@ -151,7 +150,6 @@ def generate_ai_image(prompt, index):
     return None, None
 
 def download_media(keyword, index):
-    # 🚨 AI FAILSAFE: If the AI returns null for a video clip keyword
     if not keyword:
         keyword = "abstract"
     simple_kw = urllib.parse.quote(str(keyword).split(" ")[0])
@@ -178,9 +176,13 @@ def smart_crop_to_tiktok(clip, target_w=1080, target_h=1920):
         return clip.resize(width=target_w).crop(y_center=clip.h/2, height=target_h)
 
 def create_subtitle_clip(text, duration, target_w, target_h):
-    if not text: return None
+    # 🚨 THE FIX: Strip invisible spaces. If the AI spit out blank space, quietly skip it to prevent the 0x0 array crash!
+    clean_text = str(text).strip() if text else ""
+    if not clean_text:
+        return None
+        
     try:
-        txt_clip = TextClip(str(text), fontsize=85, color='yellow', font='Liberation-Sans-Bold', stroke_color='black', stroke_width=4.5, method='caption', size=(target_w - 100, None))
+        txt_clip = TextClip(clean_text, fontsize=85, color='yellow', font='Liberation-Sans-Bold', stroke_color='black', stroke_width=4.5, method='caption', size=(target_w - 100, None))
         return txt_clip.set_position(('center', 0.6), relative=True).set_duration(duration)
     except:
         return None
@@ -191,7 +193,6 @@ def edit_short(audio_file, scenes, target_w=1080, target_h=1920):
     clips = []
     
     for i, scene in enumerate(scenes):
-        # Safely extract data from the AI's JSON
         scene_keyword = scene.get('keyword', 'abstract')
         scene_text = scene.get('text', '')
         
