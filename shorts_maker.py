@@ -5,6 +5,7 @@ import json
 import random
 import urllib.parse
 import xml.etree.ElementTree as ET
+import re  # 🚨 THE NEW UPGRADE: We imported 're' (Regular Expressions) to hunt down emojis
 
 from moviepy.editor import VideoFileClip, ImageClip, AudioFileClip, CompositeAudioClip, CompositeVideoClip, TextClip, ColorClip, concatenate_audioclips, concatenate_videoclips
 from moviepy.video.fx.loop import loop as vfx_loop
@@ -58,7 +59,7 @@ def generate_master_script(topic):
             }}
         ]
     }}
-    Make exactly 12 scenes! Return ONLY valid JSON.
+    Make exactly 12 scenes! Return ONLY valid JSON. Do not include emojis.
     """
     headers = {"Authorization": f"Bearer {OPENROUTER_API_KEY.strip()}", "Content-Type": "application/json"}
     
@@ -176,13 +177,23 @@ def smart_crop_to_tiktok(clip, target_w=1080, target_h=1920):
         return clip.resize(width=target_w).crop(y_center=clip.h/2, height=target_h)
 
 def create_subtitle_clip(text, duration, target_w, target_h):
-    # 🚨 THE FIX: Strip invisible spaces. If the AI spit out blank space, quietly skip it to prevent the 0x0 array crash!
-    clean_text = str(text).strip() if text else ""
-    if not clean_text:
+    if not text: return None
+    
+    # 🚨 EMOJI ASSASSIN: Strips out ALL emojis, weird symbols, and non-english characters!
+    # This guarantees ImageMagick will only ever receive pure alphabet letters.
+    clean_text = re.sub(r'[^\x00-\x7F]+', '', str(text)).strip()
+    
+    if len(clean_text) < 1:
         return None
         
     try:
-        txt_clip = TextClip(clean_text, fontsize=85, color='yellow', font='Liberation-Sans-Bold', stroke_color='black', stroke_width=4.5, method='caption', size=(target_w - 100, None))
+        # 🚨 Removed the specific font requirement so the server uses a safe default
+        txt_clip = TextClip(clean_text, fontsize=85, color='yellow', stroke_color='black', stroke_width=4.5, method='caption', size=(target_w - 100, None))
+        
+        # 🚨 THE FINAL FAILSAFE: If the image is still 0x0 pixels, abort safely!
+        if txt_clip.w == 0 or txt_clip.h == 0:
+            return None
+            
         return txt_clip.set_position(('center', 0.6), relative=True).set_duration(duration)
     except:
         return None
