@@ -34,7 +34,6 @@ def get_fresh_topic():
     return "The terrifying truth about your bank account"
 
 def generate_master_script(topic):
-    # 🚨 Notice the TRIPLE quotes below. They are required for multi-line text!
     prompt = f"""
     You are an elite YouTube Shorts scriptwriter. Write a 150-word script about '{topic}' in the style of Alex Hormozi or a fast-paced documentary.
     
@@ -84,9 +83,12 @@ def generate_master_script(topic):
     exit()
 
 def download_bgm(keyword):
+    # 🚨 AI FAILSAFE: If the AI returns null, force it to 'epic'
+    if not keyword:
+        keyword = "epic"
     try:
         if PIXABAY_API_KEY:
-            url = f"https://pixabay.com/api/audio/?key={PIXABAY_API_KEY}&q={urllib.parse.quote(keyword)}"
+            url = f"https://pixabay.com/api/audio/?key={PIXABAY_API_KEY}&q={urllib.parse.quote(str(keyword))}"
             resp = requests.get(url, timeout=10).json()
             if resp.get('hits'):
                 link = resp['hits'][0]['audio_download']
@@ -100,7 +102,7 @@ def download_bgm(keyword):
 
 def generate_voice_and_audio(scenes, bgm_keyword):
     print("🎤 Generating Pro AI Voiceover...")
-    full_script = " ".join([scene['text'] for scene in scenes])
+    full_script = " ".join([scene.get('text', '') for scene in scenes])
     
     clean_script = full_script.replace('"', "'")
     os.system(f'edge-tts --voice "en-US-ChristopherNeural" --text "{clean_script}" --write-media voice.mp3')
@@ -133,6 +135,7 @@ def generate_voice_and_audio(scenes, bgm_keyword):
     return "voice.mp3"
 
 def generate_ai_image(prompt, index):
+    if not prompt: prompt = "dark cinematic abstract"
     print(f"🎨 Generating Cinematic 8K Image for: {prompt}")
     safe_prompt = urllib.parse.quote(f"Shot on RED camera, photorealistic, highly detailed, cinematic lighting, 8k resolution, vertical 9:16, {prompt}")
     url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1080&height=1920&nologo=true"
@@ -148,7 +151,10 @@ def generate_ai_image(prompt, index):
     return None, None
 
 def download_media(keyword, index):
-    simple_kw = urllib.parse.quote(keyword.split(" ")[0])
+    # 🚨 AI FAILSAFE: If the AI returns null for a video clip keyword
+    if not keyword:
+        keyword = "abstract"
+    simple_kw = urllib.parse.quote(str(keyword).split(" ")[0])
     try:
         if PIXABAY_API_KEY:
             url = f"https://pixabay.com/api/videos/?key={PIXABAY_API_KEY}&q={simple_kw}&orientation=vertical&per_page=10"
@@ -172,19 +178,24 @@ def smart_crop_to_tiktok(clip, target_w=1080, target_h=1920):
         return clip.resize(width=target_w).crop(y_center=clip.h/2, height=target_h)
 
 def create_subtitle_clip(text, duration, target_w, target_h):
+    if not text: return None
     try:
-        txt_clip = TextClip(text, fontsize=85, color='yellow', font='Liberation-Sans-Bold', stroke_color='black', stroke_width=4.5, method='caption', size=(target_w - 100, None))
+        txt_clip = TextClip(str(text), fontsize=85, color='yellow', font='Liberation-Sans-Bold', stroke_color='black', stroke_width=4.5, method='caption', size=(target_w - 100, None))
         return txt_clip.set_position(('center', 0.6), relative=True).set_duration(duration)
     except:
         return None
 
 def edit_short(audio_file, scenes, target_w=1080, target_h=1920):
     audio = AudioFileClip(audio_file)
-    dur_per_scene = audio.duration / len(scenes)
+    dur_per_scene = audio.duration / max(len(scenes), 1)
     clips = []
     
     for i, scene in enumerate(scenes):
-        file, m_type = download_media(scene['keyword'], i)
+        # Safely extract data from the AI's JSON
+        scene_keyword = scene.get('keyword', 'abstract')
+        scene_text = scene.get('text', '')
+        
+        file, m_type = download_media(scene_keyword, i)
         
         try:
             if m_type == "video":
@@ -198,7 +209,7 @@ def edit_short(audio_file, scenes, target_w=1080, target_h=1920):
                 c = generate_ai_image("dark cinematic abstract background", i)
                 c = ImageClip(c[0]).set_duration(dur_per_scene) if c[0] else ColorClip(size=(target_w, target_h), color=(15, 15, 15)).set_duration(dur_per_scene)
             
-            sub_clip = create_subtitle_clip(scene['text'], dur_per_scene, target_w, target_h)
+            sub_clip = create_subtitle_clip(scene_text, dur_per_scene, target_w, target_h)
             if sub_clip:
                 c = CompositeVideoClip([c, sub_clip])
                 
@@ -220,10 +231,10 @@ def upload_to_youtube(video_file, seo):
     scopes = ["https://www.googleapis.com/auth/youtube.upload"]
     creds = Credentials.from_authorized_user_file("token.json", scopes)
     youtube = googleapiclient.discovery.build("youtube", "v3", credentials=creds)
-    tag_list = [t.strip() for t in seo['tags'].split(',')]
+    tag_list = [t.strip() for t in seo.get('tags', '').split(',')]
     
     body = {
-        "snippet": {"title": seo['title'], "description": seo['description'] + "\n\n#shorts #viral #finance #news", "tags": tag_list[:15], "categoryId": "25"}, 
+        "snippet": {"title": seo.get('title', 'Viral Short'), "description": seo.get('description', '') + "\n\n#shorts #viral #finance #news", "tags": tag_list[:15], "categoryId": "25"}, 
         "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False}
     }
     try:
@@ -237,10 +248,10 @@ def main():
     script_data = generate_master_script(topic)
     
     bgm_keyword = script_data.get('bgm_keyword', 'epic')
-    final_audio = generate_voice_and_audio(script_data['scenes'], bgm_keyword)
+    final_audio = generate_voice_and_audio(script_data.get('scenes', []), bgm_keyword)
     
-    final_video = edit_short(final_audio, script_data['scenes'])
-    upload_to_youtube(final_video, script_data['seo'])
+    final_video = edit_short(final_audio, script_data.get('scenes', []))
+    upload_to_youtube(final_video, script_data.get('seo', {}))
 
 if __name__ == "__main__":
     main()
