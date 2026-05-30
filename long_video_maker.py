@@ -269,7 +269,7 @@ def upload_to_youtube(video_file, seo, thumbnail_file):
     if not os.path.exists("token.json"): 
         return False
         
-    scopes = ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.force-ssl"]
+    scopes = ["https://www.googleapis.com/auth/youtube.upload"]
     creds = Credentials.from_authorized_user_file("token.json", scopes)
     youtube = googleapiclient.discovery.build("youtube", "v3", credentials=creds)
     tag_list = [t.strip() for t in seo.get('tags', '').split(',')]
