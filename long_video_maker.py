@@ -5,6 +5,7 @@ import json
 import random
 import urllib.parse
 import xml.etree.ElementTree as ET
+import re  # 🚨 Added the Emoji Assassin for long form!
 
 from moviepy.editor import VideoFileClip, ImageClip, AudioFileClip, CompositeAudioClip, CompositeVideoClip, TextClip, ColorClip, concatenate_audioclips, concatenate_videoclips
 from moviepy.video.fx.loop import loop as vfx_loop
@@ -26,7 +27,7 @@ def get_fresh_topic():
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         tree = ET.parse(urllib.request.urlopen(req))
         trends = [item.text.split(" - ")[0] for item in tree.getroot().findall('./channel/item/title')]
-        chosen_topic = random.choice(trends[:5]) # Top 5 only for major news
+        chosen_topic = random.choice(trends[:5]) 
         print(f"🎯 Locked Documentary Topic: {chosen_topic}")
         return chosen_topic
     except:
@@ -61,7 +62,7 @@ def generate_master_script(topic):
             }}
         ]
     }}
-    Make exactly 15 scenes! Return ONLY valid JSON.
+    Make exactly 15 scenes! Return ONLY valid JSON. Do not use emojis.
     """
     headers = {"Authorization": f"Bearer {OPENROUTER_API_KEY.strip()}", "Content-Type": "application/json"}
     
@@ -90,6 +91,10 @@ def create_mrbeast_thumbnail(prompt, text):
     if not prompt: prompt = "Surprised face, vibrant colors, high contrast, cinematic"
     if not text: text = "SHOCKING"
     
+    # Clean thumbnail text just in case the AI added emojis here too
+    clean_text = re.sub(r'[^\x00-\x7F]+', '', str(text)).strip()
+    if not clean_text: clean_text = "SHOCKING"
+    
     safe_prompt = urllib.parse.quote(f"{prompt}, youtube thumbnail style, 8k, highly saturated, 16:9")
     url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1920&height=1080&nologo=true"
     
@@ -99,9 +104,8 @@ def create_mrbeast_thumbnail(prompt, text):
             with open("raw_thumb.jpg", "wb") as f: 
                 f.write(resp.content)
             
-            # Add massive yellow text to the thumbnail using MoviePy
             img_clip = ImageClip("raw_thumb.jpg")
-            txt_clip = TextClip(str(text).upper(), fontsize=160, color='yellow', font='Liberation-Sans-Bold', stroke_color='black', stroke_width=8)
+            txt_clip = TextClip(clean_text.upper(), fontsize=160, color='yellow', font='Liberation-Sans-Bold', stroke_color='black', stroke_width=8)
             txt_clip = txt_clip.set_position(('center', 'bottom')).set_duration(1)
             
             final_thumb = CompositeVideoClip([img_clip, txt_clip])
@@ -129,7 +133,7 @@ def download_bgm(keyword):
 
 def generate_voice_and_audio(scenes, bgm_keyword):
     print("🎤 Generating Long-Form Voiceover...")
-    full_script = " ".join([scene.get('text', '') for scene in scenes])
+    full_script = " ".join([str(scene.get('text', '')).strip() for scene in scenes])
     
     clean_script = full_script.replace('"', "'")
     os.system(f'edge-tts --voice "en-US-ChristopherNeural" --text "{clean_script}" --write-media voice.mp3')
@@ -176,7 +180,6 @@ def download_media(keyword, index):
     simple_kw = urllib.parse.quote(str(keyword).split(" ")[0])
     try:
         if PIXABAY_API_KEY:
-            # Note: orientation is 'horizontal' for long videos
             url = f"https://pixabay.com/api/videos/?key={PIXABAY_API_KEY}&q={simple_kw}&orientation=horizontal&per_page=10"
             resp = requests.get(url, timeout=10).json()
             if resp.get('hits'):
@@ -190,7 +193,6 @@ def download_media(keyword, index):
         pass
     return generate_ai_image(keyword, index)
 
-# 🚨 THE 16:9 UPGRADE: Crops footage for standard YouTube landscape mode
 def smart_crop_to_landscape(clip, target_w=1920, target_h=1080):
     clip_ratio = clip.w / clip.h
     target_ratio = target_w / target_h
@@ -200,12 +202,21 @@ def smart_crop_to_landscape(clip, target_w=1920, target_h=1080):
         return clip.resize(width=target_w).crop(y_center=clip.h/2, height=target_h)
 
 def create_subtitle_clip(text, duration, target_w, target_h):
-    if not text: return None
+    # 🚨 EMOJI ASSASSIN: Strips out ALL emojis for long form!
+    clean_text = re.sub(r'[^\x00-\x7F]+', '', str(text)).strip()
+    if len(clean_text) < 1: return None
+    
     try:
-        # Smaller, more professional font for long-form, placed at bottom center
-        txt_clip = TextClip(str(text), fontsize=65, color='white', font='Liberation-Sans-Bold', stroke_color='black', stroke_width=3, method='caption', size=(target_w - 200, None))
+        txt_clip = TextClip(clean_text, fontsize=65, color='white', stroke_color='black', stroke_width=3, method='caption', size=(target_w - 200, None))
+        
+        # 🚨 THE MATHEMATICAL SHIELD
+        if txt_clip.get_frame(0).size == 0:
+            print(f"Blank mask detected for text: {clean_text}. Skipping subtitle.")
+            return None
+            
         return txt_clip.set_position(('center', 0.85), relative=True).set_duration(duration)
-    except:
+    except Exception as e:
+        print(f"Subtitle error caught safely: {e}")
         return None
 
 def edit_long_video(audio_file, scenes, target_w=1920, target_h=1080):
@@ -221,24 +232,32 @@ def edit_long_video(audio_file, scenes, target_w=1920, target_h=1080):
         file, m_type = download_media(scene_keyword, i)
         
         try:
-            if m_type == "video":
+            if m_type == "video" and file:
                 c = VideoFileClip(file).without_audio()
                 c = smart_crop_to_landscape(c)
                 c = vfx_loop(c, duration=dur_per_scene) if c.duration < dur_per_scene else c.subclip(0, dur_per_scene)
-            elif m_type == "image":
+            elif m_type == "image" and file:
                 c = ImageClip(file)
                 c = smart_crop_to_landscape(c).set_duration(dur_per_scene)
             else:
-                c = generate_ai_image("dark cinematic abstract background", i)
-                c = ImageClip(c[0]).set_duration(dur_per_scene) if c[0] else ColorClip(size=(target_w, target_h), color=(15, 15, 15)).set_duration(dur_per_scene)
+                fallback, _ = generate_ai_image("dark cinematic abstract background", i)
+                c = ImageClip(fallback).set_duration(dur_per_scene) if fallback else ColorClip(size=(target_w, target_h), color=(15, 15, 15)).set_duration(dur_per_scene)
+            
+            # 🚨 MATHEMATICAL SHIELD (For Main Clips)
+            if c.get_frame(0).size == 0:
+                raise ValueError("Corrupted Media File Array")
             
             sub_clip = create_subtitle_clip(scene_text, dur_per_scene, target_w, target_h)
             if sub_clip:
                 c = CompositeVideoClip([c, sub_clip])
                 
             clips.append(c)
+            
         except Exception as e:
-            print(f"Skipping scene {i} error: {e}")
+            # TIMELINE SHIELD: Insert safe color block if a scene breaks
+            print(f"Skipping broken scene {i}: {e}")
+            safe_c = ColorClip(size=(target_w, target_h), color=(20, 20, 20)).set_duration(dur_per_scene)
+            clips.append(safe_c)
 
     final_video = concatenate_videoclips(clips, method="compose").set_audio(audio)
     out_name = f"MINI_DOC_{int(time.time())}.mp4"
@@ -267,7 +286,6 @@ def upload_to_youtube(video_file, seo, thumbnail_file):
         video_id = response.get('id')
         print(f"✅ Video Uploaded! ID: {video_id}")
         
-        # 🚨 THUMBNAIL UPLOAD (Requires channel to be phone-verified)
         if thumbnail_file and os.path.exists(thumbnail_file):
             print("🖼️ Uploading Custom Thumbnail...")
             try:
@@ -285,7 +303,6 @@ def main():
     topic = get_fresh_topic()
     script_data = generate_master_script(topic)
     
-    # Generate Thumbnail
     thumb_prompt = script_data.get('thumbnail_prompt', '')
     thumb_text = script_data.get('thumbnail_text', '')
     thumbnail_file = create_mrbeast_thumbnail(thumb_prompt, thumb_text)
