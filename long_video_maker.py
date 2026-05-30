@@ -5,7 +5,7 @@ import json
 import random
 import urllib.parse
 import xml.etree.ElementTree as ET
-import re  # 🚨 Added the Emoji Assassin for long form!
+import re
 
 from moviepy.editor import VideoFileClip, ImageClip, AudioFileClip, CompositeAudioClip, CompositeVideoClip, TextClip, ColorClip, concatenate_audioclips, concatenate_videoclips
 from moviepy.video.fx.loop import loop as vfx_loop
@@ -35,15 +35,17 @@ def get_fresh_topic():
     return "The Untold Truth About The Global Economy"
 
 def generate_master_script(topic):
+    # 🚨 MAP & DRONE UPGRADE: The AI now hunts for real-world locations!
     prompt = f"""
-    You are an elite YouTube Documentary writer. Write a highly engaging 300-word mini-documentary about '{topic}'.
+    You are an elite YouTube Documentary director. Write a highly engaging 300-word mini-documentary about '{topic}'.
     
     RULES:
     1. THE HOOK: The first sentence must be a mind-blowing hook.
     2. THE STORY: Deep dive into the topic. Keep it fast-paced.
-    3. THUMBNAIL: Create a 'Mr Beast' style prompt for an AI image generator (e.g., 'Shocked man holding glowing money, high contrast, vibrant colors, explosive background').
-    4. THUMBNAIL TEXT: 2 to 4 words of massive clickbait text to overlay on the image (e.g., "WE ARE DOOMED").
-    5. VISUALS: Provide a 1-2 word abstract visual keyword for EACH scene (e.g., 'wallstreet', 'hacker', 'mansion').
+    3. THUMBNAIL: Create a 'Mr Beast' style prompt for an AI image generator.
+    4. THUMBNAIL TEXT: 2 to 4 words of massive clickbait text.
+    5. VISUALS: Provide a 1-3 word keyword for EACH scene (e.g., 'wallstreet drone', 'hacker cinematic').
+    6. LOCATIONS: If a scene talks about a specific real-world city, country, or landmark, you MUST provide the exact name in the 'location_name' field. If no specific location is mentioned, leave it empty.
     
     Structure the JSON exactly like this:
     {{
@@ -53,12 +55,13 @@ def generate_master_script(topic):
             "tags": "15, comma, separated, long-tail, keywords"
         }},
         "thumbnail_prompt": "Shocked face, vibrant colors, Mr Beast style...",
-        "thumbnail_text": "THE HIDDEN TRUTH",
+        "thumbnail_text": "THE TRUTH",
         "bgm_keyword": "dark synthwave",
         "scenes": [
             {{
                 "text": "The spoken text...",
-                "keyword": "city"
+                "keyword": "city drone",
+                "location_name": "New York City"
             }}
         ]
     }}
@@ -69,10 +72,8 @@ def generate_master_script(topic):
     try:
         models_resp = requests.get("https://openrouter.ai/api/v1/models").json()
         free_models = [m['id'] for m in models_resp.get('data', []) if str(m['id']).endswith(':free')][:3]
-        if not free_models: 
-            free_models = ["qwen/qwen-2-7b-instruct:free", "google/gemma-2-9b-it:free"]
-    except: 
-        free_models = ["qwen/qwen-2-7b-instruct:free", "google/gemma-2-9b-it:free"]
+        if not free_models: free_models = ["qwen/qwen-2-7b-instruct:free", "google/gemma-2-9b-it:free"]
+    except: free_models = ["qwen/qwen-2-7b-instruct:free", "google/gemma-2-9b-it:free"]
 
     url = "https://openrouter.ai/api/v1/chat/completions"
     for model in free_models:
@@ -82,8 +83,7 @@ def generate_master_script(topic):
             if response.status_code == 200:
                 clean_json = response.json()['choices'][0]['message']['content'].strip().replace("```json", "").replace("```", "").strip()
                 return json.loads(clean_json)
-        except:
-            pass
+        except: pass
     exit()
 
 def create_mrbeast_thumbnail(prompt, text):
@@ -91,7 +91,6 @@ def create_mrbeast_thumbnail(prompt, text):
     if not prompt: prompt = "Surprised face, vibrant colors, high contrast, cinematic"
     if not text: text = "SHOCKING"
     
-    # Clean thumbnail text just in case the AI added emojis here too
     clean_text = re.sub(r'[^\x00-\x7F]+', '', str(text)).strip()
     if not clean_text: clean_text = "SHOCKING"
     
@@ -101,18 +100,14 @@ def create_mrbeast_thumbnail(prompt, text):
     try:
         resp = requests.get(url, timeout=20)
         if resp.status_code == 200:
-            with open("raw_thumb.jpg", "wb") as f: 
-                f.write(resp.content)
-            
+            with open("raw_thumb.jpg", "wb") as f: f.write(resp.content)
             img_clip = ImageClip("raw_thumb.jpg")
             txt_clip = TextClip(clean_text.upper(), fontsize=160, color='yellow', font='Liberation-Sans-Bold', stroke_color='black', stroke_width=8)
             txt_clip = txt_clip.set_position(('center', 'bottom')).set_duration(1)
-            
             final_thumb = CompositeVideoClip([img_clip, txt_clip])
             final_thumb.save_frame("final_thumbnail.jpg", t=0)
             return "final_thumbnail.jpg"
-    except Exception as e:
-        print(f"Thumbnail generation failed: {e}")
+    except: pass
     return None
 
 def download_bgm(keyword):
@@ -124,11 +119,9 @@ def download_bgm(keyword):
             if resp.get('hits'):
                 link = resp['hits'][0]['audio_download']
                 fpath = "bgm.mp3"
-                with open(fpath, "wb") as f: 
-                    f.write(requests.get(link).content)
+                with open(fpath, "wb") as f: f.write(requests.get(link).content)
                 return fpath
-    except:
-        pass
+    except: pass
     return None
 
 def generate_voice_and_audio(scenes, bgm_keyword):
@@ -147,7 +140,7 @@ def generate_voice_and_audio(scenes, bgm_keyword):
     
     if bgm_file:
         try:
-            bgm = afx_volumex(AudioFileClip(bgm_file), 0.06)
+            bgm = afx_volumex(AudioFileClip(bgm_file), 0.05)
             if bgm.duration < voice.duration:
                 loops_needed = int(voice.duration / bgm.duration) + 1
                 bgm = concatenate_audioclips([bgm] * loops_needed)
@@ -156,41 +149,60 @@ def generate_voice_and_audio(scenes, bgm_keyword):
             final_audio.write_audiofile("final_audio.mp3", fps=44100, logger=None)
             voice.close(); bgm.close()
             return "final_audio.mp3"
-        except:
-            pass
+        except: pass
     return "voice.mp3"
 
 def generate_ai_image(prompt, index):
     if not prompt: prompt = "dark cinematic abstract"
-    safe_prompt = urllib.parse.quote(f"Shot on RED camera, 8k resolution, landscape 16:9, highly detailed, {prompt}")
+    safe_prompt = urllib.parse.quote(f"Shot on RED camera, 8k resolution, cinematic lighting, dramatic shadows, landscape 16:9, highly detailed, {prompt}")
     url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1920&height=1080&nologo=true"
     try:
         resp = requests.get(url, timeout=20)
         if resp.status_code == 200:
             fpath = f"ai_scene_{index}.jpg"
-            with open(fpath, "wb") as f: 
-                f.write(resp.content)
+            with open(fpath, "wb") as f: f.write(resp.content)
             return fpath, "image"
-    except:
-        pass
+    except: pass
     return None, None
 
-def download_media(keyword, index):
-    if not keyword: keyword = "abstract"
-    simple_kw = urllib.parse.quote(str(keyword).split(" ")[0])
+def download_media(keyword, index, location_name=""):
+    # 🚨 THE MAP & DRONE ENGINE 🚨
+    if location_name and len(location_name) > 2:
+        print(f"📍 Location Detected: {location_name}. Initiating Drone/Map Sequence...")
+        safe_loc = urllib.parse.quote(str(location_name))
+        try:
+            if PIXABAY_API_KEY:
+                # 1. Hunt for real 4K drone footage of the city first
+                url = f"https://pixabay.com/api/videos/?key={PIXABAY_API_KEY}&q={safe_loc}+drone&orientation=horizontal&min_width=1920&per_page=5"
+                resp = requests.get(url, timeout=10).json()
+                if resp.get('hits'):
+                    video = random.choice(resp['hits']) 
+                    link = video['videos']['medium']['url']
+                    fpath = f"scene_{index}.mp4"
+                    with open(fpath, "wb") as f: f.write(requests.get(link).content)
+                    print("✅ Real Drone Footage Found!")
+                    return fpath, "video"
+        except: pass
+        
+        # 2. If no drone video exists, generate a Google Earth Satellite Map!
+        print(f"🛰️ Generating Google Earth 3D Satellite Map for {location_name}...")
+        map_prompt = f"Google Earth top-down satellite view of {location_name}, 3D map drone shot, photorealistic 8k map"
+        return generate_ai_image(map_prompt, index)
+
+    # Standard fallback if no location is mentioned
+    if not keyword: keyword = "abstract cinematic"
+    simple_kw = urllib.parse.quote(f"{str(keyword)} cinematic 4k")
     try:
         if PIXABAY_API_KEY:
-            url = f"https://pixabay.com/api/videos/?key={PIXABAY_API_KEY}&q={simple_kw}&orientation=horizontal&per_page=10"
+            url = f"https://pixabay.com/api/videos/?key={PIXABAY_API_KEY}&q={simple_kw}&orientation=horizontal&min_width=1920&per_page=10"
             resp = requests.get(url, timeout=10).json()
             if resp.get('hits'):
                 video = random.choice(resp['hits']) 
                 link = video['videos']['medium']['url']
                 fpath = f"scene_{index}.mp4"
-                with open(fpath, "wb") as f: 
-                    f.write(requests.get(link).content)
+                with open(fpath, "wb") as f: f.write(requests.get(link).content)
                 return fpath, "video"
-    except:
-        pass
+    except: pass
     return generate_ai_image(keyword, index)
 
 def smart_crop_to_landscape(clip, target_w=1920, target_h=1080):
@@ -202,38 +214,34 @@ def smart_crop_to_landscape(clip, target_w=1920, target_h=1080):
         return clip.resize(width=target_w).crop(y_center=clip.h/2, height=target_h)
 
 def create_subtitle_clip(text, duration, target_w, target_h):
-    # 🚨 EMOJI ASSASSIN: Strips out ALL emojis for long form!
     clean_text = re.sub(r'[^\x00-\x7F]+', '', str(text)).strip()
     if len(clean_text) < 1: return None
-    
     try:
-        txt_clip = TextClip(clean_text, fontsize=65, color='white', stroke_color='black', stroke_width=3, method='caption', size=(target_w - 200, None))
-        
-        # 🚨 THE MATHEMATICAL SHIELD
-        if txt_clip.get_frame(0).size == 0:
-            print(f"Blank mask detected for text: {clean_text}. Skipping subtitle.")
-            return None
-            
+        txt_clip = TextClip(clean_text, fontsize=65, color='white', stroke_color='black', stroke_width=3.5, method='caption', size=(target_w - 300, None))
+        if txt_clip.get_frame(0).size == 0: return None
         return txt_clip.set_position(('center', 0.85), relative=True).set_duration(duration)
-    except Exception as e:
-        print(f"Subtitle error caught safely: {e}")
-        return None
+    except: return None
 
 def edit_long_video(audio_file, scenes, target_w=1920, target_h=1080):
-    print("🎬 Rendering 16:9 Mini-Documentary...")
+    print("🎬 Rendering 16:9 Cinematic Mini-Documentary...")
     audio = AudioFileClip(audio_file)
-    dur_per_scene = audio.duration / max(len(scenes), 1)
+    total_audio_duration = audio.duration
+    dur_per_scene = total_audio_duration / max(len(scenes), 1)
     clips = []
     
     for i, scene in enumerate(scenes):
         scene_keyword = scene.get('keyword', 'abstract')
         scene_text = scene.get('text', '')
         
-        file, m_type = download_media(scene_keyword, i)
+        # We pass the location name to the Map Engine
+        location_name = scene.get('location_name', '')
+        
+        file, m_type = download_media(scene_keyword, i, location_name)
         
         try:
             if m_type == "video" and file:
                 c = VideoFileClip(file).without_audio()
+                c.get_frame(0.1) 
                 c = smart_crop_to_landscape(c)
                 c = vfx_loop(c, duration=dur_per_scene) if c.duration < dur_per_scene else c.subclip(0, dur_per_scene)
             elif m_type == "image" and file:
@@ -243,32 +251,37 @@ def edit_long_video(audio_file, scenes, target_w=1920, target_h=1080):
                 fallback, _ = generate_ai_image("dark cinematic abstract background", i)
                 c = ImageClip(fallback).set_duration(dur_per_scene) if fallback else ColorClip(size=(target_w, target_h), color=(15, 15, 15)).set_duration(dur_per_scene)
             
-            # 🚨 MATHEMATICAL SHIELD (For Main Clips)
-            if c.get_frame(0).size == 0:
-                raise ValueError("Corrupted Media File Array")
+            if c.get_frame(0).size == 0: raise ValueError("Corrupted Media Array")
             
             sub_clip = create_subtitle_clip(scene_text, dur_per_scene, target_w, target_h)
-            if sub_clip:
-                c = CompositeVideoClip([c, sub_clip])
-                
+            if sub_clip: c = CompositeVideoClip([c, sub_clip])
+            
+            c = c.set_duration(dur_per_scene)
             clips.append(c)
             
         except Exception as e:
-            # TIMELINE SHIELD: Insert safe color block if a scene breaks
-            print(f"Skipping broken scene {i}: {e}")
-            safe_c = ColorClip(size=(target_w, target_h), color=(20, 20, 20)).set_duration(dur_per_scene)
+            print(f"Skipping corrupted scene {i}: {e}")
+            safe_fallback, _ = generate_ai_image(scene_keyword, i)
+            if safe_fallback:
+                safe_c = ImageClip(safe_fallback).set_duration(dur_per_scene)
+                safe_c = smart_crop_to_landscape(safe_c)
+            else:
+                safe_c = ColorClip(size=(target_w, target_h), color=(20, 20, 20)).set_duration(dur_per_scene)
+            
+            sub_clip = create_subtitle_clip(scene_text, dur_per_scene, target_w, target_h)
+            if sub_clip: safe_c = CompositeVideoClip([safe_c, sub_clip])
             clips.append(safe_c)
 
     final_video = concatenate_videoclips(clips, method="compose").set_audio(audio)
-    out_name = f"MINI_DOC_{int(time.time())}.mp4"
+    final_video = final_video.set_duration(total_audio_duration)
+    
+    out_name = f"CINEMATIC_DOC_{int(time.time())}.mp4"
     final_video.write_videofile(out_name, fps=30, codec="libx264", audio_codec="aac", logger=None)
     audio.close(); final_video.close()
     return out_name
 
 def upload_to_youtube(video_file, seo, thumbnail_file):
-    if not os.path.exists("token.json"): 
-        return False
-        
+    if not os.path.exists("token.json"): return False
     scopes = ["https://www.googleapis.com/auth/youtube.upload"]
     creds = Credentials.from_authorized_user_file("token.json", scopes)
     youtube = googleapiclient.discovery.build("youtube", "v3", credentials=creds)
@@ -278,26 +291,14 @@ def upload_to_youtube(video_file, seo, thumbnail_file):
         "snippet": {"title": seo.get('title', 'Deep Dive'), "description": seo.get('description', ''), "tags": tag_list[:20], "categoryId": "25"}, 
         "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False}
     }
-    
     try:
-        print("📤 Uploading Long Video...")
         response = youtube.videos().insert(part="snippet,status", body=body, media_body=MediaFileUpload(video_file, chunksize=-1, resumable=True)).execute()
-        
         video_id = response.get('id')
-        print(f"✅ Video Uploaded! ID: {video_id}")
-        
         if thumbnail_file and os.path.exists(thumbnail_file):
-            print("🖼️ Uploading Custom Thumbnail...")
-            try:
-                youtube.thumbnails().set(videoId=video_id, media_body=MediaFileUpload(thumbnail_file)).execute()
-                print("✅ Thumbnail attached!")
-            except Exception as e:
-                print(f"⚠️ Thumbnail failed (Is your YouTube channel phone verified?): {e}")
-                
+            try: youtube.thumbnails().set(videoId=video_id, media_body=MediaFileUpload(thumbnail_file)).execute()
+            except: pass
         return True
-    except Exception as e: 
-        print(f"Upload crashed: {e}")
-        return False
+    except: return False
 
 def main():
     topic = get_fresh_topic()
