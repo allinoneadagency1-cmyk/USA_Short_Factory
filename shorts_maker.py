@@ -180,16 +180,19 @@ def create_subtitle_clip(text, duration, target_w, target_h):
     if len(clean_text) < 1: return None
         
     try:
+        # 🚨 Removed the 'font' requirement completely. This forces ImageMagick to use a safe default 
+        # and stops it from crashing if Ubuntu is missing Liberation-Sans.
         txt_clip = TextClip(clean_text, fontsize=85, color='yellow', stroke_color='black', stroke_width=4.5, method='caption', size=(target_w - 100, None))
         
-        # 🚨 THE PRE-RENDER SHIELD 🚨
-        # Force Python to evaluate the mask right now. If it's a corrupted 0x0 invisible 
-        # text block, it will throw the exact ValueError here, which we catch safely below!
-        txt_clip.get_frame(0)
-        
+        # 🚨 THE MATHEMATICAL SHIELD 🚨
+        # We check the actual size of the numpy pixel array. If it equals 0, we kill it immediately.
+        if txt_clip.get_frame(0).size == 0:
+            print(f"Blank mask detected for text: {clean_text}. Skipping subtitle.")
+            return None
+            
         return txt_clip.set_position(('center', 0.6), relative=True).set_duration(duration)
     except Exception as e:
-        print(f"Invisible char detected, subtitle safely skipped: {e}")
+        print(f"Subtitle error caught safely: {e}")
         return None
 
 def edit_short(audio_file, scenes, target_w=1080, target_h=1920):
@@ -215,8 +218,9 @@ def edit_short(audio_file, scenes, target_w=1080, target_h=1920):
                 fallback, _ = generate_ai_image("dark cinematic abstract background", i)
                 c = ImageClip(fallback).set_duration(dur_per_scene) if fallback else ColorClip(size=(target_w, target_h), color=(15, 15, 15)).set_duration(dur_per_scene)
             
-            # Pre-render the background just to be safe
-            c.get_frame(0)
+            # 🚨 THE MATHEMATICAL SHIELD (FOR VIDEO CLIPS) 🚨
+            if c.get_frame(0).size == 0:
+                raise ValueError("Corrupted Media File Array")
             
             sub_clip = create_subtitle_clip(scene_text, dur_per_scene, target_w, target_h)
             if sub_clip:
