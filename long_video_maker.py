@@ -21,9 +21,8 @@ PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
 
 def get_fresh_topic():
-    print("\n🌍 Hunting for Viral Topics...")
+    print("\n🌍 Hunting for Viral Finance Topics (Bypassing Google)...")
     
-    # 🚨 EVERGREEN FAILSAFE: If Google blocks the server, it instantly pivots to these viral hits!
     backup_topics = [
         "The Hidden Trillion Dollar Economy Nobody Talks About",
         "How BlackRock Actually Controls The World",
@@ -36,24 +35,21 @@ def get_fresh_topic():
     ]
     
     try:
-        url = 'https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en'
-        # Heavier Anti-Bot Disguise
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
-        }
-        resp = requests.get(url, headers=headers, timeout=10)
+        # 🚨 THE YAHOO UPGRADE: Yahoo Finance is bot-friendly and perfect for your niche!
+        url = 'https://finance.yahoo.com/news/rssindex'
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        resp = requests.get(url, headers=headers, timeout=15)
         
         if resp.status_code == 200:
             tree = ET.fromstring(resp.content)
-            trends = [item.text.split(" - ")[0] for item in tree.findall('./channel/item/title')]
+            trends = [item.text for item in tree.findall('./channel/item/title')]
             if trends:
                 chosen_topic = random.choice(trends[:5]) 
-                print(f"🎯 Locked Live News Topic: {chosen_topic}")
+                print(f"🎯 Locked Live Yahoo Finance Topic: {chosen_topic}")
                 return chosen_topic
     except Exception as e:
-        print(f"⚠️ Google News blocked the server: {e}")
+        print(f"⚠️ Yahoo News blocked the server: {e}")
         
-    # If the live news fails, it picks a guaranteed winner
     chosen_topic = random.choice(backup_topics)
     print(f"🎯 Locked Evergreen Topic: {chosen_topic}")
     return chosen_topic
