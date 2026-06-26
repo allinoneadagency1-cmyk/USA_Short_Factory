@@ -21,21 +21,44 @@ PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
 
 def get_fresh_topic():
-    print("\n🌍 Scraping Google for Deep-Dive Documentary Topics...")
+    print("\n🌍 Hunting for Viral Topics...")
+    
+    # 🚨 EVERGREEN FAILSAFE: If Google blocks the server, it instantly pivots to these viral hits!
+    backup_topics = [
+        "The Hidden Trillion Dollar Economy Nobody Talks About",
+        "How BlackRock Actually Controls The World",
+        "The Terrifying Truth About The US Housing Market",
+        "Why The Middle Class Is Being Intentionally Destroyed",
+        "The Secret Banking System Rich People Use",
+        "What Happened to Silicon Valley Bank? The Real Story",
+        "The Dark Side of the Federal Reserve",
+        "How China is Secretly Buying Up American Land"
+    ]
+    
     try:
         url = 'https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en'
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        tree = ET.parse(urllib.request.urlopen(req))
-        trends = [item.text.split(" - ")[0] for item in tree.getroot().findall('./channel/item/title')]
-        chosen_topic = random.choice(trends[:5]) 
-        print(f"🎯 Locked Documentary Topic: {chosen_topic}")
-        return chosen_topic
-    except:
-        pass
-    return "The Untold Truth About The Global Economy"
+        # Heavier Anti-Bot Disguise
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
+        }
+        resp = requests.get(url, headers=headers, timeout=10)
+        
+        if resp.status_code == 200:
+            tree = ET.fromstring(resp.content)
+            trends = [item.text.split(" - ")[0] for item in tree.findall('./channel/item/title')]
+            if trends:
+                chosen_topic = random.choice(trends[:5]) 
+                print(f"🎯 Locked Live News Topic: {chosen_topic}")
+                return chosen_topic
+    except Exception as e:
+        print(f"⚠️ Google News blocked the server: {e}")
+        
+    # If the live news fails, it picks a guaranteed winner
+    chosen_topic = random.choice(backup_topics)
+    print(f"🎯 Locked Evergreen Topic: {chosen_topic}")
+    return chosen_topic
 
 def generate_master_script(topic):
-    # 🚨 MAP & DRONE UPGRADE: The AI now hunts for real-world locations!
     prompt = f"""
     You are an elite YouTube Documentary director. Write a highly engaging 300-word mini-documentary about '{topic}'.
     
@@ -166,13 +189,11 @@ def generate_ai_image(prompt, index):
     return None, None
 
 def download_media(keyword, index, location_name=""):
-    # 🚨 THE MAP & DRONE ENGINE 🚨
     if location_name and len(location_name) > 2:
         print(f"📍 Location Detected: {location_name}. Initiating Drone/Map Sequence...")
         safe_loc = urllib.parse.quote(str(location_name))
         try:
             if PIXABAY_API_KEY:
-                # 1. Hunt for real 4K drone footage of the city first
                 url = f"https://pixabay.com/api/videos/?key={PIXABAY_API_KEY}&q={safe_loc}+drone&orientation=horizontal&min_width=1920&per_page=5"
                 resp = requests.get(url, timeout=10).json()
                 if resp.get('hits'):
@@ -184,12 +205,10 @@ def download_media(keyword, index, location_name=""):
                     return fpath, "video"
         except: pass
         
-        # 2. If no drone video exists, generate a Google Earth Satellite Map!
         print(f"🛰️ Generating Google Earth 3D Satellite Map for {location_name}...")
         map_prompt = f"Google Earth top-down satellite view of {location_name}, 3D map drone shot, photorealistic 8k map"
         return generate_ai_image(map_prompt, index)
 
-    # Standard fallback if no location is mentioned
     if not keyword: keyword = "abstract cinematic"
     simple_kw = urllib.parse.quote(f"{str(keyword)} cinematic 4k")
     try:
@@ -232,8 +251,6 @@ def edit_long_video(audio_file, scenes, target_w=1920, target_h=1080):
     for i, scene in enumerate(scenes):
         scene_keyword = scene.get('keyword', 'abstract')
         scene_text = scene.get('text', '')
-        
-        # We pass the location name to the Map Engine
         location_name = scene.get('location_name', '')
         
         file, m_type = download_media(scene_keyword, i, location_name)
