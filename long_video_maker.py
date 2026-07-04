@@ -48,41 +48,42 @@ def extract_json(raw_text):
 def is_valid_script(script_json):
     if script_json and isinstance(script_json, dict):
         scenes = script_json.get("scenes", [])
-        if len(scenes) > 5: return True
+        if len(scenes) > 15: return True # Must be a LONG script
     return False
 
 def generate_master_script(topic):
+    # 🚨 V5 DOCUMENTARY PROMPT: Forcing 600 words and 35 scenes for a 3-4 minute run time.
     prompt = f"""
-    You are an elite YouTube Documentary director. Write a highly engaging 300-word mini-documentary about '{topic}'.
+    You are an elite Netflix Documentary director. Write a highly engaging 600-word, 3 to 4-minute documentary script about '{topic}'.
     
     RULES:
     1. THE HOOK: The first sentence must be a mind-blowing hook.
-    2. THE STORY: Deep dive into the topic. Keep it fast-paced like a high-stakes podcast.
+    2. THE STORY: Deep dive into the topic. Keep it highly cinematic, mysterious, and factual.
     3. THUMBNAIL: Create a 'Mr Beast' style prompt for an AI image generator.
     4. THUMBNAIL TEXT: 2 to 4 words of massive clickbait text.
-    5. VISUALS: Provide a 2-word cinematic keyword for EACH scene.
-    6. LOCATIONS: If a scene talks about a specific real-world city, provide the exact name in the 'location_name' field. Otherwise leave empty.
-    7. TEXT CHUNKS: Break the spoken text into exactly 1-2 short sentences per scene so the screen changes constantly.
+    5. VISUALS: Provide a 2-3 word cinematic keyword for EACH scene (e.g., 'wallstreet drone', 'hacker cinematic').
+    6. LOCATIONS: If a scene talks about a specific real-world city/country, provide the exact name in the 'location_name' field to trigger the Map Drone AI.
+    7. TEXT CHUNKS: Break the spoken text into exactly 1-2 short sentences per scene.
     
-    Return ONLY valid JSON matching this exact structure:
+    Return ONLY valid JSON matching this structure:
     {{
-        "seo": {{"title": "Insane Clickbait Title | Deep Dive", "description": "Engaging description...", "tags": "finance, money, economy"}},
-        "thumbnail_prompt": "Shocked face, vibrant colors, Mr Beast style...",
+        "seo": {{"title": "Insane Clickbait Title | Deep Dive", "description": "Engaging description...", "tags": "finance, money, economy, documentary"}},
+        "thumbnail_prompt": "Shocked face, vibrant colors, cinematic",
         "thumbnail_text": "THE TRUTH",
-        "bgm_keyword": "dark synthwave",
+        "bgm_keyword": "documentary dark",
         "scenes": [
             {{"text": "The banks are hiding a massive secret.", "keyword": "bank vault", "location_name": ""}},
             {{"text": "Right now in Wall Street, they are doing this.", "keyword": "wallstreet drone", "location_name": "Wall Street"}}
         ]
     }}
-    Make EXACTLY 20 fast-paced scenes! No emojis. Return ONLY valid JSON block.
+    Make EXACTLY 35 fast-paced scenes! No emojis. Return ONLY valid JSON block.
     """
     
-    print("🧠 Attempting Brain 1 (OpenRouter)...")
+    print("🧠 Attempting Brain 1 (OpenRouter - Heavy Request)...")
     headers = {"Authorization": f"Bearer {OPENROUTER_API_KEY.strip() if OPENROUTER_API_KEY else ''}", "Content-Type": "application/json"}
     try:
         payload = {"model": "google/gemma-2-9b-it:free", "messages": [{"role": "user", "content": prompt}]}
-        response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=40)
+        response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=60)
         if response.status_code == 200:
             script_json = extract_json(response.json()['choices'][0]['message']['content'])
             if is_valid_script(script_json): return script_json
@@ -92,29 +93,40 @@ def generate_master_script(topic):
     try:
         safe_prompt = urllib.parse.quote(f"Respond strictly in JSON format. {prompt}")
         url = f"https://text.pollinations.ai/prompt/{safe_prompt}?model=openai"
-        response = requests.get(url, timeout=40)
+        response = requests.get(url, timeout=60)
         if response.status_code == 200:
             script_json = extract_json(response.text)
             if is_valid_script(script_json): return script_json
     except: pass
 
     print("⚠️ ALL AI NETWORKS DOWN. Using Emergency Local Long Script.")
+    # Fallback to a heavy 3-minute hardcoded script if APIs crash
     return {
         "seo": {"title": "The Greatest Wealth Transfer in History 🚨", "description": "How the 1% is buying everything.", "tags": "finance, economy, wealth transfer"},
         "thumbnail_prompt": "Billionaire laughing while holding a golden globe, cinematic, hyperrealistic",
         "thumbnail_text": "THEY OWN YOU",
         "bgm_keyword": "dark synthwave",
         "scenes": [
-            {"text": "We are living through the greatest wealth transfer in human history.", "keyword": "money printing", "location_name": ""},
-            {"text": "And the crazy part? Most people don't even see it happening.", "keyword": "crowded street", "location_name": ""},
-            {"text": "While regular people are struggling to buy a single home...", "keyword": "suburb house", "location_name": ""},
-            {"text": "Massive corporations are buying up entire neighborhoods.", "keyword": "city skyline", "location_name": "New York City"},
-            {"text": "They use cheap institutional debt to outbid families.", "keyword": "signing contract", "location_name": ""},
-            {"text": "The goal is simple: turn a nation of homeowners into a nation of renters.", "keyword": "apartment building", "location_name": ""},
-            {"text": "Because when you own nothing, you are entirely dependent on the system.", "keyword": "matrix code", "location_name": ""},
-            {"text": "This is why asset prices are skyrocketing while wages stay flat.", "keyword": "stock chart", "location_name": ""},
-            {"text": "The 1% knows that fiat currency is designed to lose value.", "keyword": "burning money", "location_name": ""},
-            {"text": "So they store their wealth in real estate, gold, and equity.", "keyword": "gold bars", "location_name": ""}
+            {"text": "We are living through the greatest wealth transfer in human history.", "keyword": "money printing cinematic", "location_name": ""},
+            {"text": "And the crazy part? Most people don't even see it happening.", "keyword": "crowded street drone", "location_name": ""},
+            {"text": "While regular people are struggling to buy a single home...", "keyword": "suburb house cinematic", "location_name": ""},
+            {"text": "Massive corporations are buying up entire neighborhoods.", "keyword": "city skyline drone", "location_name": "New York City"},
+            {"text": "They use cheap institutional debt to outbid families by tens of thousands of dollars.", "keyword": "signing contract cinematic", "location_name": ""},
+            {"text": "The goal is simple: turn a nation of homeowners into a nation of renters.", "keyword": "apartment building drone", "location_name": ""},
+            {"text": "Because when you own nothing, you are entirely dependent on the system.", "keyword": "matrix code cinematic", "location_name": ""},
+            {"text": "This is why asset prices are skyrocketing while wages stay completely flat.", "keyword": "stock chart dramatic", "location_name": ""},
+            {"text": "The 1% knows that fiat currency is designed to lose value over time.", "keyword": "burning money 4k", "location_name": ""},
+            {"text": "So they store their wealth in real estate, gold, and equity.", "keyword": "gold bars cinematic", "location_name": ""},
+            {"text": "If you are keeping your money in a traditional savings account right now...", "keyword": "bank vault dramatic", "location_name": ""},
+            {"text": "You are actually losing purchasing power every single day.", "keyword": "clock ticking cinematic", "location_name": ""},
+            {"text": "Look at what is happening in Silicon Valley.", "keyword": "tech campus drone", "location_name": "Silicon Valley"},
+            {"text": "Tech billionaires are quietly buying thousands of acres of farmland.", "keyword": "tractor field drone", "location_name": ""},
+            {"text": "They aren't doing this to become farmers.", "keyword": "businessman cinematic", "location_name": ""},
+            {"text": "They are doing this because land is a finite resource.", "keyword": "earth satellite view", "location_name": ""},
+            {"text": "The rules of the game have been completely rewritten.", "keyword": "chess board cinematic", "location_name": ""},
+            {"text": "You can no longer save your way to wealth.", "keyword": "empty wallet 4k", "location_name": ""},
+            {"text": "You have to invest your way to freedom.", "keyword": "soaring eagle cinematic", "location_name": ""},
+            {"text": "The clock is ticking. What is your next move?", "keyword": "dark storm dramatic", "location_name": ""}
         ]
     }
 
@@ -132,7 +144,6 @@ def download_bgm(keyword):
     return None
 
 def generate_ai_image(prompt, index, width=1920, height=1080):
-    # 🚨 V4 VISUALS: Utilizing the high-end FLUX model for ultra-realism (16:9 ratio)
     safe_prompt = urllib.parse.quote(f"Cinematic documentary footage, 8k resolution, highly detailed, photorealistic, 16:9, {prompt}")
     url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width={width}&height={height}&nologo=true&model=flux"
     try:
@@ -145,7 +156,7 @@ def generate_ai_image(prompt, index, width=1920, height=1080):
     return None, None
 
 def create_mrbeast_thumbnail(prompt, text):
-    print("🖼️ Generating V4 FLUX Thumbnail...")
+    print("🖼️ Generating V5 FLUX Thumbnail...")
     if not prompt: prompt = "Surprised face, vibrant colors, high contrast, cinematic"
     if not text: text = "SHOCKING"
     
@@ -165,7 +176,6 @@ def create_mrbeast_thumbnail(prompt, text):
     return None
 
 def download_media(keyword, index, location_name=""):
-    # 🚨 THE MAP & DRONE ENGINE 🚨
     if location_name and len(location_name) > 2:
         print(f"📍 Location Detected: {location_name}. Initiating Drone/Map Sequence...")
         safe_loc = urllib.parse.quote(str(location_name))
@@ -179,7 +189,7 @@ def download_media(keyword, index, location_name=""):
                     with open(fpath, "wb") as f: f.write(requests.get(video['videos']['large']['url']).content)
                     return fpath, "video"
         except: pass
-        map_prompt = f"Google Earth top-down satellite view of {location_name}, 3D map drone shot"
+        map_prompt = f"Google Earth top-down satellite view of {location_name}, 3D map drone shot, hyperrealistic"
         return generate_ai_image(map_prompt, index)
 
     simple_kw = urllib.parse.quote(f"{str(keyword)} 4k cinematic")
@@ -195,15 +205,21 @@ def download_media(keyword, index, location_name=""):
     except: pass
     return generate_ai_image(keyword, index)
 
-def smart_crop_to_landscape(clip, target_w=1920, target_h=1080):
+# 🚨 THE MERCILESS 16:9 ENFORCER 🚨
+def force_16_9_landscape(clip, target_w=1920, target_h=1080):
     clip_ratio = clip.w / clip.h
     target_ratio = target_w / target_h
+    
     if clip_ratio > target_ratio:
-        return clip.resize(height=target_h).crop(x_center=clip.w/2, width=target_w)
+        # Video is too wide, resize to fit height, then crop width
+        resized = clip.resize(height=target_h)
+        return resized.crop(x_center=resized.w/2, width=target_w)
     else:
-        return clip.resize(width=target_w).crop(y_center=clip.h/2, height=target_h)
+        # Video is too tall (vertical), resize to fit width, then crop height
+        resized = clip.resize(width=target_w)
+        return resized.crop(y_center=resized.h/2, height=target_h)
 
-def add_ken_burns_effect(clip, zoom_ratio=0.04):
+def add_3d_ken_burns_effect(clip, zoom_ratio=0.04):
     def zoom_in(get_frame, t):
         frame = get_frame(t)
         h, w = frame.shape[:2]
@@ -220,50 +236,50 @@ def create_subtitle_clip(text, duration, target_w, target_h):
     clean_text = re.sub(r'[^\x00-\x7F]+', '', str(text)).strip()
     if len(clean_text) < 1: return None
     try:
-        txt_clip = TextClip(clean_text, fontsize=70, color='white', stroke_color='black', stroke_width=4, method='caption', size=(target_w - 300, None))
+        txt_clip = TextClip(clean_text, fontsize=65, color='white', font='Liberation-Sans-Bold', stroke_color='black', stroke_width=4, method='caption', size=(target_w - 400, None))
         if txt_clip.get_frame(0).size == 0: return None
         return txt_clip.set_position(('center', 0.85), relative=True).set_duration(duration)
     except: return None
 
-def build_v4_studio_long_video(scenes, bgm_keyword, target_w=1920, target_h=1080):
-    print("🎬 Initializing V4 Long Studio Engine (Perfect Sync)...")
+def build_v5_netflix_long_video(scenes, bgm_keyword, target_w=1920, target_h=1080):
+    print("🎬 Initializing V5 Netflix-Grade Engine (3-4 Min | Strict 16:9 | Perfect Sync)...")
     clips = []
     
-    # 🚨 V4 PERFECT SYNC ENGINE (LONG VIDEO EDITION) 🚨
     for i, scene in enumerate(scenes):
         scene_text = scene.get('text', '').strip()
         scene_kw = scene.get('keyword', 'abstract')
         location_name = scene.get('location_name', '')
         if len(scene_text) < 2: continue
         
-        # 1. Generate exact audio for this specific scene
+        # 1. Generate Voice (Perfect Sync Engine)
         txt_file = f"temp_scene_{i}.txt"
         audio_file = f"scene_{i}.mp3"
         with open(txt_file, "w", encoding="utf-8") as f: f.write(scene_text)
         
-        os.system(f'edge-tts --voice "en-US-ChristopherNeural" --rate=+5% -f {txt_file} --write-media {audio_file}')
+        os.system(f'edge-tts --voice "en-US-ChristopherNeural" --rate=+0% -f {txt_file} --write-media {audio_file}')
         
         if not os.path.exists(audio_file) or os.path.getsize(audio_file) < 500:
             from gtts import gTTS
-            gTTS(text=scene_text, lang='en', tld='us').save(audio_file)
+            gTTS(text=scene_text, lang='en', tld='co.uk').save(audio_file)
             
         scene_audio = AudioFileClip(audio_file)
         exact_duration = scene_audio.duration
         
-        # 2. Get Media and lock it exactly to the audio duration
+        # 2. Get Media and Mercilessly Format to 16:9
         file, m_type = download_media(scene_kw, i, location_name)
         try:
             if m_type == "video" and file:
                 c = VideoFileClip(file).without_audio()
-                c = smart_crop_to_landscape(c)
+                c = force_16_9_landscape(c, target_w, target_h)
                 c = vfx.loop(c, duration=exact_duration) if c.duration < exact_duration else c.subclip(0, exact_duration)
             elif m_type == "image" and file:
                 c = ImageClip(file).set_duration(exact_duration)
-                c = smart_crop_to_landscape(c)
-                c = add_ken_burns_effect(c)
+                c = force_16_9_landscape(c, target_w, target_h)
+                c = add_3d_ken_burns_effect(c) # 3D Cinematic Panning
             else:
                 c = ColorClip(size=(target_w, target_h), color=(15, 15, 15)).set_duration(exact_duration)
                 
+            # 3. Add High-End Subtitles
             sub_clip = create_subtitle_clip(scene_text, exact_duration, target_w, target_h)
             if sub_clip: c = CompositeVideoClip([c, sub_clip])
             
@@ -273,8 +289,10 @@ def build_v4_studio_long_video(scenes, bgm_keyword, target_w=1920, target_h=1080
         except Exception as e:
             print(f"Skipping scene {i} error: {e}")
 
+    print("🧩 Merging all scenes into a massive Master File...")
     final_video = concatenate_videoclips(clips, method="compose")
     
+    # Apply global BGM mix
     bgm_file = download_bgm(bgm_keyword)
     if bgm_file:
         try:
@@ -286,7 +304,7 @@ def build_v4_studio_long_video(scenes, bgm_keyword, target_w=1920, target_h=1080
             final_video = final_video.set_audio(final_audio)
         except: pass
 
-    out_name = f"V4_LONG_DOC_{int(time.time())}.mp4"
+    out_name = f"NETFLIX_DOC_{int(time.time())}.mp4"
     final_video.write_videofile(out_name, fps=30, codec="libx264", audio_codec="aac", logger=None)
     final_video.close()
     return out_name
@@ -299,7 +317,7 @@ def upload_to_youtube(video_file, seo, thumbnail_file):
     tag_list = [t.strip() for t in seo.get('tags', '').split(',')]
     
     body = {
-        "snippet": {"title": seo.get('title', 'Deep Dive'), "description": seo.get('description', ''), "tags": tag_list[:20], "categoryId": "25"}, 
+        "snippet": {"title": seo.get('title', 'Deep Dive Documentary'), "description": seo.get('description', ''), "tags": tag_list[:20], "categoryId": "25"}, 
         "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False}
     }
     try:
@@ -321,7 +339,7 @@ def main():
     thumb_text = script_data.get('thumbnail_text', '')
     thumbnail_file = create_mrbeast_thumbnail(thumb_prompt, thumb_text)
         
-    final_video = build_v4_studio_long_video(script_data.get('scenes', []), script_data.get('bgm_keyword', 'suspense dark'))
+    final_video = build_v5_netflix_long_video(script_data.get('scenes', []), script_data.get('bgm_keyword', 'documentary suspense'))
     upload_to_youtube(final_video, script_data.get('seo', {}), thumbnail_file)
 
 if __name__ == "__main__":
