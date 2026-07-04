@@ -39,7 +39,6 @@ def get_fresh_topic():
     return random.choice(backup_topics)
 
 def extract_json(raw_text):
-    # Extracts JSON safely even if the AI adds weird formatting or markdown
     try:
         match = re.search(r'\{.*\}', raw_text, re.DOTALL)
         if match:
@@ -75,7 +74,6 @@ def generate_master_script(topic):
     Make EXACTLY 16 fast-paced scenes! No emojis. Return ONLY valid JSON block.
     """
     
-    # 🧠 BRAIN 1: Try OpenRouter Free Models First
     print("🧠 Attempting Brain 1 (OpenRouter)...")
     headers = {"Authorization": f"Bearer {OPENROUTER_API_KEY.strip() if OPENROUTER_API_KEY else ''}", "Content-Type": "application/json"}
     try:
@@ -87,10 +85,8 @@ def generate_master_script(topic):
     except Exception as e:
         print(f"⚠️ Brain 1 Failed: {e}")
 
-    # 🚨 BRAIN 2: The "No-Key" Dynamic AI Bypass (Pollinations Text API)
     print("🚀 Brain 1 Busy. Routing to Brain 2 (Free Dynamic AI)...")
     try:
-        # We tell the free AI to act strictly as a JSON generator
         safe_prompt = urllib.parse.quote(f"Respond strictly in JSON format. {prompt}")
         url = f"https://text.pollinations.ai/prompt/{safe_prompt}?model=openai"
         response = requests.get(url, timeout=40)
@@ -103,7 +99,6 @@ def generate_master_script(topic):
     except Exception as e:
         print(f"⚠️ Brain 2 Failed: {e}")
 
-    # Absolute last resort only if the entire internet breaks
     print("⚠️ ALL AI NETWORKS DOWN. Using Emergency Local Script.")
     return {
         "seo": {"title": "The Middle Class Trap Exposed 🚨 | #shorts", "description": "Why you are working harder but getting poorer.", "tags": "finance, money, wealth, investing, crash"},
@@ -136,9 +131,20 @@ def download_bgm(keyword):
 def generate_voice_and_audio(scenes, bgm_keyword):
     print("🎤 Generating Ultra-Crisp AI Voice...")
     full_script = " ".join([str(scene.get('text', '')).strip() for scene in scenes])
-    clean_script = full_script.replace('"', "'")
     
-    os.system(f'edge-tts --voice "en-US-GuyNeural" --rate=+10% --text "{clean_script}" --write-media voice.mp3')
+    # 🚨 THE EDGE-TTS BYPASS 🚨
+    # Saving to a .txt file prevents quotes and weird characters from breaking the terminal
+    with open("script.txt", "w", encoding="utf-8") as f:
+        f.write(full_script)
+        
+    os.system('edge-tts --voice "en-US-GuyNeural" --rate=+10% -f script.txt --write-media voice.mp3')
+    
+    # 🚨 THE 0-BYTE AUDIO SHIELD 🚨
+    # If the file didn't generate or is corrupted (less than 1KB), switch to Google Voice instantly
+    if not os.path.exists("voice.mp3") or os.path.getsize("voice.mp3") < 1000:
+        print("⚠️ Voice file corrupted. Using Google TTS Failsafe...")
+        from gtts import gTTS
+        gTTS(text=full_script, lang='en', tld='us').save("voice.mp3")
     
     voice = AudioFileClip("voice.mp3")
     bgm_file = download_bgm(bgm_keyword)
