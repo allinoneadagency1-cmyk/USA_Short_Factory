@@ -6,6 +6,7 @@ import random
 import urllib.parse
 import xml.etree.ElementTree as ET
 import re
+import gc # 🚨 NEW: The Garbage Collector to clear RAM!
 
 from moviepy.editor import VideoFileClip, ImageClip, AudioFileClip, CompositeAudioClip, CompositeVideoClip, TextClip, ColorClip, concatenate_audioclips, concatenate_videoclips
 import moviepy.video.fx.all as vfx
@@ -48,11 +49,10 @@ def extract_json(raw_text):
 def is_valid_script(script_json):
     if script_json and isinstance(script_json, dict):
         scenes = script_json.get("scenes", [])
-        if len(scenes) > 15: return True # Must be a LONG script
+        if len(scenes) > 15: return True 
     return False
 
 def generate_master_script(topic):
-    # 🚨 V5 DOCUMENTARY PROMPT: Forcing 600 words and 35 scenes for a 3-4 minute run time.
     prompt = f"""
     You are an elite Netflix Documentary director. Write a highly engaging 600-word, 3 to 4-minute documentary script about '{topic}'.
     
@@ -61,8 +61,8 @@ def generate_master_script(topic):
     2. THE STORY: Deep dive into the topic. Keep it highly cinematic, mysterious, and factual.
     3. THUMBNAIL: Create a 'Mr Beast' style prompt for an AI image generator.
     4. THUMBNAIL TEXT: 2 to 4 words of massive clickbait text.
-    5. VISUALS: Provide a 2-3 word cinematic keyword for EACH scene (e.g., 'wallstreet drone', 'hacker cinematic').
-    6. LOCATIONS: If a scene talks about a specific real-world city/country, provide the exact name in the 'location_name' field to trigger the Map Drone AI.
+    5. VISUALS: Provide a 2-3 word cinematic keyword for EACH scene.
+    6. LOCATIONS: If a scene talks about a specific real-world city/country, provide the exact name in the 'location_name' field.
     7. TEXT CHUNKS: Break the spoken text into exactly 1-2 short sentences per scene.
     
     Return ONLY valid JSON matching this structure:
@@ -100,7 +100,6 @@ def generate_master_script(topic):
     except: pass
 
     print("⚠️ ALL AI NETWORKS DOWN. Using Emergency Local Long Script.")
-    # Fallback to a heavy 3-minute hardcoded script if APIs crash
     return {
         "seo": {"title": "The Greatest Wealth Transfer in History 🚨", "description": "How the 1% is buying everything.", "tags": "finance, economy, wealth transfer"},
         "thumbnail_prompt": "Billionaire laughing while holding a golden globe, cinematic, hyperrealistic",
@@ -192,30 +191,27 @@ def download_media(keyword, index, location_name=""):
         map_prompt = f"Google Earth top-down satellite view of {location_name}, 3D map drone shot, hyperrealistic"
         return generate_ai_image(map_prompt, index)
 
-    simple_kw = urllib.parse.quote(f"{str(keyword)} 4k cinematic")
+    simple_kw = urllib.parse.quote(f"{str(keyword)} cinematic")
     try:
         if PIXABAY_API_KEY:
-            url = f"https://pixabay.com/api/videos/?key={PIXABAY_API_KEY}&q={simple_kw}&orientation=horizontal&min_width=1920&per_page=10"
+            url = f"https://pixabay.com/api/videos/?key={PIXABAY_API_KEY}&q={simple_kw}&orientation=horizontal&min_width=1280&per_page=10"
             resp = requests.get(url, timeout=10).json()
             if resp.get('hits'):
                 video = random.choice(resp['hits']) 
                 fpath = f"scene_{index}.mp4"
-                with open(fpath, "wb") as f: f.write(requests.get(video['videos']['large']['url']).content)
+                with open(fpath, "wb") as f: f.write(requests.get(video['videos']['medium']['url']).content) # Uses medium to save massive amounts of RAM
                 return fpath, "video"
     except: pass
     return generate_ai_image(keyword, index)
 
-# 🚨 THE MERCILESS 16:9 ENFORCER 🚨
 def force_16_9_landscape(clip, target_w=1920, target_h=1080):
     clip_ratio = clip.w / clip.h
     target_ratio = target_w / target_h
     
     if clip_ratio > target_ratio:
-        # Video is too wide, resize to fit height, then crop width
         resized = clip.resize(height=target_h)
         return resized.crop(x_center=resized.w/2, width=target_w)
     else:
-        # Video is too tall (vertical), resize to fit width, then crop height
         resized = clip.resize(width=target_w)
         return resized.crop(y_center=resized.h/2, height=target_h)
 
@@ -236,13 +232,13 @@ def create_subtitle_clip(text, duration, target_w, target_h):
     clean_text = re.sub(r'[^\x00-\x7F]+', '', str(text)).strip()
     if len(clean_text) < 1: return None
     try:
-        txt_clip = TextClip(clean_text, fontsize=65, color='white', font='Liberation-Sans-Bold', stroke_color='black', stroke_width=4, method='caption', size=(target_w - 400, None))
+        txt_clip = TextClip(clean_text, fontsize=70, color='white', stroke_color='black', stroke_width=4, method='caption', size=(target_w - 400, None))
         if txt_clip.get_frame(0).size == 0: return None
         return txt_clip.set_position(('center', 0.85), relative=True).set_duration(duration)
     except: return None
 
 def build_v5_netflix_long_video(scenes, bgm_keyword, target_w=1920, target_h=1080):
-    print("🎬 Initializing V5 Netflix-Grade Engine (3-4 Min | Strict 16:9 | Perfect Sync)...")
+    print("🎬 Initializing V5.1 RAM-Optimized Netflix Engine...")
     clips = []
     
     for i, scene in enumerate(scenes):
@@ -251,7 +247,6 @@ def build_v5_netflix_long_video(scenes, bgm_keyword, target_w=1920, target_h=108
         location_name = scene.get('location_name', '')
         if len(scene_text) < 2: continue
         
-        # 1. Generate Voice (Perfect Sync Engine)
         txt_file = f"temp_scene_{i}.txt"
         audio_file = f"scene_{i}.mp3"
         with open(txt_file, "w", encoding="utf-8") as f: f.write(scene_text)
@@ -265,7 +260,6 @@ def build_v5_netflix_long_video(scenes, bgm_keyword, target_w=1920, target_h=108
         scene_audio = AudioFileClip(audio_file)
         exact_duration = scene_audio.duration
         
-        # 2. Get Media and Mercilessly Format to 16:9
         file, m_type = download_media(scene_kw, i, location_name)
         try:
             if m_type == "video" and file:
@@ -275,11 +269,10 @@ def build_v5_netflix_long_video(scenes, bgm_keyword, target_w=1920, target_h=108
             elif m_type == "image" and file:
                 c = ImageClip(file).set_duration(exact_duration)
                 c = force_16_9_landscape(c, target_w, target_h)
-                c = add_3d_ken_burns_effect(c) # 3D Cinematic Panning
+                c = add_3d_ken_burns_effect(c) 
             else:
                 c = ColorClip(size=(target_w, target_h), color=(15, 15, 15)).set_duration(exact_duration)
                 
-            # 3. Add High-End Subtitles
             sub_clip = create_subtitle_clip(scene_text, exact_duration, target_w, target_h)
             if sub_clip: c = CompositeVideoClip([c, sub_clip])
             
@@ -288,11 +281,13 @@ def build_v5_netflix_long_video(scenes, bgm_keyword, target_w=1920, target_h=108
             
         except Exception as e:
             print(f"Skipping scene {i} error: {e}")
+            
+        # 🚨 GARBAGE COLLECTOR: Clears system RAM after processing each heavy scene
+        gc.collect() 
 
     print("🧩 Merging all scenes into a massive Master File...")
     final_video = concatenate_videoclips(clips, method="compose")
     
-    # Apply global BGM mix
     bgm_file = download_bgm(bgm_keyword)
     if bgm_file:
         try:
@@ -305,7 +300,11 @@ def build_v5_netflix_long_video(scenes, bgm_keyword, target_w=1920, target_h=108
         except: pass
 
     out_name = f"NETFLIX_DOC_{int(time.time())}.mp4"
-    final_video.write_videofile(out_name, fps=30, codec="libx264", audio_codec="aac", logger=None)
+    
+    # 🚨 CPU & RAM PROTECTOR: Drops frame rate to Hollywood standard 24fps and forces ultrafast rendering
+    print("⚙️ Rendering Video at 24 FPS (Cinematic Standard)...")
+    final_video.write_videofile(out_name, fps=24, codec="libx264", preset="ultrafast", threads=4, audio_codec="aac", logger=None)
+    
     final_video.close()
     return out_name
 
