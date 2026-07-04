@@ -46,6 +46,15 @@ def extract_json(raw_text):
     except: pass
     return None
 
+# 🚨 THE BLANK TEXT SHIELD 🚨
+def is_valid_script(script_json):
+    # Grades the AI's homework. If it doesn't have scenes, reject it!
+    if script_json and isinstance(script_json, dict):
+        scenes = script_json.get("scenes", [])
+        if len(scenes) > 3: # Must have at least 4 scenes to be a real video
+            return True
+    return False
+
 def generate_master_script(topic):
     prompt = f"""
     You are a viral YouTube Shorts producer for a Finance Channel. Write a fast-paced, highly controversial 150-word script about '{topic}'.
@@ -81,11 +90,12 @@ def generate_master_script(topic):
         response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=30)
         if response.status_code == 200:
             script_json = extract_json(response.json()['choices'][0]['message']['content'])
-            if script_json: return script_json
+            if is_valid_script(script_json): 
+                return script_json
     except Exception as e:
         print(f"⚠️ Brain 1 Failed: {e}")
 
-    print("🚀 Brain 1 Busy. Routing to Brain 2 (Free Dynamic AI)...")
+    print("🚀 Brain 1 Busy/Failed. Routing to Brain 2 (Free Dynamic AI)...")
     try:
         safe_prompt = urllib.parse.quote(f"Respond strictly in JSON format. {prompt}")
         url = f"https://text.pollinations.ai/prompt/{safe_prompt}?model=openai"
@@ -93,13 +103,13 @@ def generate_master_script(topic):
         
         if response.status_code == 200:
             script_json = extract_json(response.text)
-            if script_json: 
+            if is_valid_script(script_json): 
                 print("✅ Brain 2 Successfully wrote the script!")
                 return script_json
     except Exception as e:
         print(f"⚠️ Brain 2 Failed: {e}")
 
-    print("⚠️ ALL AI NETWORKS DOWN. Using Emergency Local Script.")
+    print("⚠️ ALL AI NETWORKS DOWN OR SENT BLANK TEXT. Using Emergency Local Script.")
     return {
         "seo": {"title": "The Middle Class Trap Exposed 🚨 | #shorts", "description": "Why you are working harder but getting poorer.", "tags": "finance, money, wealth, investing, crash"},
         "bgm_keyword": "phonk aggressive",
@@ -131,20 +141,22 @@ def download_bgm(keyword):
 def generate_voice_and_audio(scenes, bgm_keyword):
     print("🎤 Generating Ultra-Crisp AI Voice...")
     full_script = " ".join([str(scene.get('text', '')).strip() for scene in scenes])
+    clean_script = full_script.replace('"', "'").strip()
     
-    # 🚨 THE EDGE-TTS BYPASS 🚨
-    # Saving to a .txt file prevents quotes and weird characters from breaking the terminal
+    # Absolute last-line-of-defense if the script is still somehow empty
+    if len(clean_script) < 2:
+        clean_script = "The system is rigged. Wake up and start investing today."
+        full_script = clean_script
+
     with open("script.txt", "w", encoding="utf-8") as f:
         f.write(full_script)
         
     os.system('edge-tts --voice "en-US-GuyNeural" --rate=+10% -f script.txt --write-media voice.mp3')
     
-    # 🚨 THE 0-BYTE AUDIO SHIELD 🚨
-    # If the file didn't generate or is corrupted (less than 1KB), switch to Google Voice instantly
     if not os.path.exists("voice.mp3") or os.path.getsize("voice.mp3") < 1000:
         print("⚠️ Voice file corrupted. Using Google TTS Failsafe...")
         from gtts import gTTS
-        gTTS(text=full_script, lang='en', tld='us').save("voice.mp3")
+        gTTS(text=clean_script, lang='en', tld='us').save("voice.mp3")
     
     voice = AudioFileClip("voice.mp3")
     bgm_file = download_bgm(bgm_keyword)
@@ -278,10 +290,6 @@ def main():
     topic = get_fresh_topic()
     script_data = generate_master_script(topic)
     
-    if not script_data or not isinstance(script_data, dict):
-        print("⚠️ Absolute failure. Safe Exit.")
-        return
-        
     final_audio = generate_voice_and_audio(script_data.get('scenes', []), script_data.get('bgm_keyword', 'phonk'))
     final_video = edit_short(final_audio, script_data.get('scenes', []))
     upload_to_youtube(final_video, script_data.get('seo', {}))
