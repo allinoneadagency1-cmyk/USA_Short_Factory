@@ -46,87 +46,77 @@ def extract_json(raw_text):
     except: pass
     return None
 
-# 🚨 THE BLANK TEXT SHIELD 🚨
 def is_valid_script(script_json):
-    # Grades the AI's homework. If it doesn't have scenes, reject it!
     if script_json and isinstance(script_json, dict):
         scenes = script_json.get("scenes", [])
-        if len(scenes) > 3: # Must have at least 4 scenes to be a real video
-            return True
+        if len(scenes) > 3: return True
     return False
 
 def generate_master_script(topic):
+    # 🚨 V4 PODCAST FORMAT: Highly viral, conversational, conspiracy-style hooks
     prompt = f"""
-    You are a viral YouTube Shorts producer for a Finance Channel. Write a fast-paced, highly controversial 150-word script about '{topic}'.
+    You are a viral YouTube Shorts producer. Write a 150-word script about '{topic}' formatted like a leaked, high-stakes podcast interview.
     
     RULES:
-    1. THE HOOK: The first 3 seconds MUST provoke fear, greed, or intense curiosity. 
-    2. PACING: Short, punchy phrases. No boring explanations.
-    3. VISUALS: Provide a 2-word highly specific cinematic keyword for each scene.
-    4. CHUNKED TEXT: Break the 'text' into very small 3-4 word chunks so they flash quickly on screen.
+    1. THE HOOK: Start with a mind-blowing realization. (e.g., "Nobody realizes that...")
+    2. PACING: Short, conversational, hard-hitting sentences. 
+    3. VISUALS: Provide a 2-word cinematic keyword for each scene.
+    4. TEXT CHUNKS: Break the spoken text into exactly 1 short sentence per scene so the screen changes constantly.
     
-    Return ONLY valid JSON matching this exact structure:
+    Return ONLY valid JSON:
     {{
         "seo": {{
-            "title": "Insane Clickbait Title | #shorts",
-            "description": "Engaging description with SEO keywords",
-            "tags": "finance, money, wealth, investing, crash"
+            "title": "They are hiding this from you... 🚨 #shorts",
+            "description": "The truth about wealth. #finance #money",
+            "tags": "finance, money, podcast, truth, wealth"
         }},
-        "bgm_keyword": "phonk",
+        "bgm_keyword": "suspense dark",
         "scenes": [
-            {{
-                "text": "The banks are lying.",
-                "keyword": "bank vault"
-            }}
+            {{"text": "Nobody realizes what the banks are actually doing.", "keyword": "bank vault"}},
+            {{"text": "They take your money, pay you nothing,", "keyword": "money printing"}},
+            {{"text": "and lend it out at 20% interest.", "keyword": "credit card"}}
         ]
     }}
-    Make EXACTLY 16 fast-paced scenes! No emojis. Return ONLY valid JSON block.
+    Make EXACTLY 10 scenes! No emojis. Return ONLY JSON.
     """
     
-    print("🧠 Attempting Brain 1 (OpenRouter)...")
     headers = {"Authorization": f"Bearer {OPENROUTER_API_KEY.strip() if OPENROUTER_API_KEY else ''}", "Content-Type": "application/json"}
     try:
         payload = {"model": "google/gemma-2-9b-it:free", "messages": [{"role": "user", "content": prompt}]}
         response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=30)
         if response.status_code == 200:
             script_json = extract_json(response.json()['choices'][0]['message']['content'])
-            if is_valid_script(script_json): 
-                return script_json
-    except Exception as e:
-        print(f"⚠️ Brain 1 Failed: {e}")
+            if is_valid_script(script_json): return script_json
+    except: pass
 
-    print("🚀 Brain 1 Busy/Failed. Routing to Brain 2 (Free Dynamic AI)...")
+    print("🚀 Routing to Brain 2 (Free Dynamic AI)...")
     try:
         safe_prompt = urllib.parse.quote(f"Respond strictly in JSON format. {prompt}")
         url = f"https://text.pollinations.ai/prompt/{safe_prompt}?model=openai"
         response = requests.get(url, timeout=40)
-        
         if response.status_code == 200:
             script_json = extract_json(response.text)
-            if is_valid_script(script_json): 
-                print("✅ Brain 2 Successfully wrote the script!")
-                return script_json
-    except Exception as e:
-        print(f"⚠️ Brain 2 Failed: {e}")
+            if is_valid_script(script_json): return script_json
+    except: pass
 
-    print("⚠️ ALL AI NETWORKS DOWN OR SENT BLANK TEXT. Using Emergency Local Script.")
     return {
         "seo": {"title": "The Middle Class Trap Exposed 🚨 | #shorts", "description": "Why you are working harder but getting poorer.", "tags": "finance, money, wealth, investing, crash"},
-        "bgm_keyword": "phonk aggressive",
+        "bgm_keyword": "suspense dark",
         "scenes": [
-            {"text": "The middle class", "keyword": "suburb house cinematic"}, {"text": "is a trap.", "keyword": "mouse trap 4k"},
-            {"text": "While you work", "keyword": "office worker tired"}, {"text": "for a salary,", "keyword": "money counting cinematic"},
-            {"text": "the top 1%", "keyword": "mansion cinematic"}, {"text": "are buying assets.", "keyword": "gold bars 4k"},
-            {"text": "They use debt", "keyword": "credit card cinematic"}, {"text": "to pay zero taxes.", "keyword": "tax form 4k"},
-            {"text": "And inflation?", "keyword": "grocery store prices"}, {"text": "It silently pays off", "keyword": "bank vault 4k"},
-            {"text": "their massive loans.", "keyword": "signing document cinematic"}, {"text": "Wake up.", "keyword": "eyes opening cinematic"},
-            {"text": "Stop saving cash.", "keyword": "burning money 4k"}, {"text": "Start buying assets.", "keyword": "real estate cinematic"},
-            {"text": "Before it's", "keyword": "clock ticking 4k"}, {"text": "too late.", "keyword": "dark storm cinematic"}
+            {"text": "Here is the biggest lie you've ever been told.", "keyword": "suburb house"},
+            {"text": "You were told to save your money in a bank.", "keyword": "bank vault"},
+            {"text": "But while your money sits there losing value to inflation,", "keyword": "burning money"},
+            {"text": "the banks are using it to buy up real assets.", "keyword": "gold bars"},
+            {"text": "They use debt to pay zero taxes.", "keyword": "tax form"},
+            {"text": "And you are the one footing the bill.", "keyword": "tired worker"},
+            {"text": "The entire system is designed to keep you renting.", "keyword": "apartment building"},
+            {"text": "Stop saving cash. Start buying assets.", "keyword": "real estate"},
+            {"text": "Before the middle class completely disappears.", "keyword": "dark storm"}
         ]
     }
 
 def download_bgm(keyword):
-    if not keyword: keyword = "phonk aggressive"
+    if not keyword: keyword = "suspense dark"
     try:
         if PIXABAY_API_KEY:
             url = f"https://pixabay.com/api/audio/?key={PIXABAY_API_KEY}&q={urllib.parse.quote(str(keyword))}"
@@ -138,45 +128,10 @@ def download_bgm(keyword):
     except: pass
     return None
 
-def generate_voice_and_audio(scenes, bgm_keyword):
-    print("🎤 Generating Ultra-Crisp AI Voice...")
-    full_script = " ".join([str(scene.get('text', '')).strip() for scene in scenes])
-    clean_script = full_script.replace('"', "'").strip()
-    
-    # Absolute last-line-of-defense if the script is still somehow empty
-    if len(clean_script) < 2:
-        clean_script = "The system is rigged. Wake up and start investing today."
-        full_script = clean_script
-
-    with open("script.txt", "w", encoding="utf-8") as f:
-        f.write(full_script)
-        
-    os.system('edge-tts --voice "en-US-GuyNeural" --rate=+10% -f script.txt --write-media voice.mp3')
-    
-    if not os.path.exists("voice.mp3") or os.path.getsize("voice.mp3") < 1000:
-        print("⚠️ Voice file corrupted. Using Google TTS Failsafe...")
-        from gtts import gTTS
-        gTTS(text=clean_script, lang='en', tld='us').save("voice.mp3")
-    
-    voice = AudioFileClip("voice.mp3")
-    bgm_file = download_bgm(bgm_keyword)
-    
-    if bgm_file:
-        try:
-            bgm = afx_volumex(AudioFileClip(bgm_file), 0.08)
-            if bgm.duration < voice.duration:
-                bgm = concatenate_audioclips([bgm] * (int(voice.duration / bgm.duration) + 1))
-            bgm = bgm.subclip(0, voice.duration)
-            final_audio = CompositeAudioClip([voice, bgm])
-            final_audio.write_audiofile("final_audio.mp3", fps=44100, logger=None)
-            voice.close(); bgm.close()
-            return "final_audio.mp3"
-        except: pass
-    return "voice.mp3"
-
 def generate_ai_image(prompt, index):
-    safe_prompt = urllib.parse.quote(f"Cinematic masterpiece, 8k resolution, highly detailed, dramatic lighting, vertical 9:16, {prompt}")
-    url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1080&height=1920&nologo=true"
+    # 🚨 V4 VISUALS: Utilizing the high-end FLUX model for ultra-realism
+    safe_prompt = urllib.parse.quote(f"Photorealistic, cinematic lighting, 8k resolution, documentary footage style, vertical 9:16, {prompt}")
+    url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1080&height=1920&nologo=true&model=flux"
     try:
         resp = requests.get(url, timeout=20)
         if resp.status_code == 200:
@@ -224,50 +179,77 @@ def create_subtitle_clip(text, duration, target_w, target_h):
     clean_text = re.sub(r'[^\x00-\x7F]+', '', str(text)).strip().upper()
     if len(clean_text) < 1: return None
     try:
-        txt_clip = TextClip(clean_text, fontsize=100, color='#FFFF00', stroke_color='black', stroke_width=6, method='caption', size=(target_w - 150, None))
+        txt_clip = TextClip(clean_text, fontsize=90, color='white', stroke_color='black', stroke_width=5, method='caption', size=(target_w - 150, None))
         if txt_clip.get_frame(0).size == 0: return None
         return txt_clip.set_position(('center', 'center')).set_duration(duration)
     except: return None
 
-def edit_short(audio_file, scenes, target_w=1080, target_h=1920):
-    print("🎬 Rendering V3 Cinematic Final Cut...")
-    audio = AudioFileClip(audio_file)
-    dur_per_scene = audio.duration / max(len(scenes), 1)
+def build_v4_studio_video(scenes, bgm_keyword, target_w=1080, target_h=1920):
+    print("🎬 Initializing V4 Studio Engine (Perfect Sync)...")
     clips = []
     
+    # 🚨 V4 PERFECT SYNC ENGINE: Generate audio scene-by-scene, locking exact durations
     for i, scene in enumerate(scenes):
-        file, m_type = download_media(scene.get('keyword', 'abstract'), i)
+        scene_text = scene.get('text', '').strip()
+        scene_kw = scene.get('keyword', 'abstract')
+        if len(scene_text) < 2: continue
         
+        # 1. Generate exact audio for this specific scene
+        txt_file = f"temp_scene_{i}.txt"
+        audio_file = f"scene_{i}.mp3"
+        with open(txt_file, "w", encoding="utf-8") as f: f.write(scene_text)
+        
+        os.system(f'edge-tts --voice "en-US-ChristopherNeural" --rate=+5% -f {txt_file} --write-media {audio_file}')
+        
+        if not os.path.exists(audio_file) or os.path.getsize(audio_file) < 500:
+            from gtts import gTTS
+            gTTS(text=scene_text, lang='en', tld='us').save(audio_file)
+            
+        scene_audio = AudioFileClip(audio_file)
+        exact_duration = scene_audio.duration
+        
+        # 2. Get Media and lock it exactly to the audio duration
+        file, m_type = download_media(scene_kw, i)
         try:
             if m_type == "video" and file:
                 c = VideoFileClip(file).without_audio()
-                c.get_frame(0.1) 
                 c = smart_crop_to_tiktok(c)
-                c = vfx.loop(c, duration=dur_per_scene) if c.duration < dur_per_scene else c.subclip(0, dur_per_scene)
+                c = vfx.loop(c, duration=exact_duration) if c.duration < exact_duration else c.subclip(0, exact_duration)
             elif m_type == "image" and file:
-                c = ImageClip(file).set_duration(dur_per_scene)
+                c = ImageClip(file).set_duration(exact_duration)
                 c = smart_crop_to_tiktok(c)
-                c = add_ken_burns_effect(c) 
+                c = add_ken_burns_effect(c)
             else:
-                fallback, _ = generate_ai_image("dark cinematic abstract background", i)
-                c = ImageClip(fallback).set_duration(dur_per_scene) if fallback else ColorClip(size=(target_w, target_h), color=(15, 15, 15)).set_duration(dur_per_scene)
-                if fallback: c = add_ken_burns_effect(smart_crop_to_tiktok(c))
-            
-            if c.get_frame(0).size == 0: raise ValueError("Corrupted Array")
-            
-            sub_clip = create_subtitle_clip(scene.get('text', ''), dur_per_scene, target_w, target_h)
+                c = ColorClip(size=(target_w, target_h), color=(15, 15, 15)).set_duration(exact_duration)
+                
+            sub_clip = create_subtitle_clip(scene_text, exact_duration, target_w, target_h)
             if sub_clip: c = CompositeVideoClip([c, sub_clip])
             
-            clips.append(c.set_duration(dur_per_scene))
+            c = c.set_audio(scene_audio)
+            clips.append(c)
             
         except Exception as e:
-            print(f"Skipping corrupted scene {i}")
-            clips.append(ColorClip(size=(target_w, target_h), color=(20, 20, 20)).set_duration(dur_per_scene))
+            print(f"Skipping scene {i} error: {e}")
 
-    final_video = concatenate_videoclips(clips, method="compose").set_audio(audio)
-    out_name = f"V3_VIRAL_SHORT_{int(time.time())}.mp4"
+    # Concatenate all perfectly synced blocks together
+    final_video = concatenate_videoclips(clips, method="compose")
+    
+    # Add Background Music across the whole video
+    bgm_file = download_bgm(bgm_keyword)
+    if bgm_file:
+        try:
+            bgm = afx_volumex(AudioFileClip(bgm_file), 0.06)
+            if bgm.duration < final_video.duration:
+                bgm = concatenate_audioclips([bgm] * (int(final_video.duration / bgm.duration) + 1))
+            bgm = bgm.subclip(0, final_video.duration)
+            
+            final_audio = CompositeAudioClip([final_video.audio, bgm])
+            final_video = final_video.set_audio(final_audio)
+        except: pass
+
+    out_name = f"V4_PODCAST_SHORT_{int(time.time())}.mp4"
     final_video.write_videofile(out_name, fps=30, codec="libx264", audio_codec="aac", logger=None)
-    audio.close(); final_video.close()
+    final_video.close()
     return out_name
 
 def upload_to_youtube(video_file, seo):
@@ -290,8 +272,10 @@ def main():
     topic = get_fresh_topic()
     script_data = generate_master_script(topic)
     
-    final_audio = generate_voice_and_audio(script_data.get('scenes', []), script_data.get('bgm_keyword', 'phonk'))
-    final_video = edit_short(final_audio, script_data.get('scenes', []))
+    if not script_data or not isinstance(script_data, dict):
+        return
+        
+    final_video = build_v4_studio_video(script_data.get('scenes', []), script_data.get('bgm_keyword', 'suspense'))
     upload_to_youtube(final_video, script_data.get('seo', {}))
 
 if __name__ == "__main__":
