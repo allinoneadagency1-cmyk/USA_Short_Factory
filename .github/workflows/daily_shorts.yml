@@ -25,7 +25,7 @@ jobs:
 
       - name: Install Python Libraries
         # 🚨 THE FIX: Added 'imageio-ffmpeg' right here so Python never loses the video engine
-        run: pip install requests moviepy==1.0.3 Pillow==9.5.0 imageio-ffmpeg edge-tts google-auth-oauthlib google-api-python-client
+        run: pip install requests moviepy==1.0.3 Pillow==9.5.0 imageio-ffmpeg edge-tts google-auth-oauthlib google-api-python-client gtts
 
       - name: Run Factory
         env:
