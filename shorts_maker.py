@@ -38,15 +38,23 @@ def get_fresh_topic():
     except: pass
     return random.choice(backup_topics)
 
+def extract_json(raw_text):
+    # Extracts JSON safely even if the AI adds weird formatting or markdown
+    try:
+        match = re.search(r'\{.*\}', raw_text, re.DOTALL)
+        if match:
+            return json.loads(match.group(0))
+    except: pass
+    return None
+
 def generate_master_script(topic):
-    # 🚨 V3 AI BRAIN: Strictly designed for maximum dopamine and watch time
     prompt = f"""
     You are a viral YouTube Shorts producer for a Finance Channel. Write a fast-paced, highly controversial 150-word script about '{topic}'.
     
     RULES:
     1. THE HOOK: The first 3 seconds MUST provoke fear, greed, or intense curiosity. 
     2. PACING: Short, punchy phrases. No boring explanations.
-    3. VISUALS: Provide a 2-word highly specific cinematic keyword for each scene (e.g., 'mansion night', 'hacker desk', 'wallstreet panic').
+    3. VISUALS: Provide a 2-word highly specific cinematic keyword for each scene.
     4. CHUNKED TEXT: Break the 'text' into very small 3-4 word chunks so they flash quickly on screen.
     
     Return ONLY valid JSON matching this exact structure:
@@ -64,18 +72,53 @@ def generate_master_script(topic):
             }}
         ]
     }}
-    Make EXACTLY 18 fast-paced scenes! No emojis. Return ONLY JSON.
+    Make EXACTLY 16 fast-paced scenes! No emojis. Return ONLY valid JSON block.
     """
-    headers = {"Authorization": f"Bearer {OPENROUTER_API_KEY.strip()}", "Content-Type": "application/json"}
+    
+    # 🧠 BRAIN 1: Try OpenRouter Free Models First
+    print("🧠 Attempting Brain 1 (OpenRouter)...")
+    headers = {"Authorization": f"Bearer {OPENROUTER_API_KEY.strip() if OPENROUTER_API_KEY else ''}", "Content-Type": "application/json"}
     try:
-        models = ["qwen/qwen-2-7b-instruct:free", "google/gemma-2-9b-it:free"]
-        for model in models:
-            payload = {"model": model, "messages": [{"role": "system", "content": "You output strict JSON."}, {"role": "user", "content": prompt}]}
-            response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=40)
-            if response.status_code == 200:
-                clean_json = response.json()['choices'][0]['message']['content'].strip().replace("```json", "").replace("```", "").strip()
-                return json.loads(clean_json)
-    except: exit("AI Generation Failed. Retrying next run.")
+        payload = {"model": "google/gemma-2-9b-it:free", "messages": [{"role": "user", "content": prompt}]}
+        response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=30)
+        if response.status_code == 200:
+            script_json = extract_json(response.json()['choices'][0]['message']['content'])
+            if script_json: return script_json
+    except Exception as e:
+        print(f"⚠️ Brain 1 Failed: {e}")
+
+    # 🚨 BRAIN 2: The "No-Key" Dynamic AI Bypass (Pollinations Text API)
+    print("🚀 Brain 1 Busy. Routing to Brain 2 (Free Dynamic AI)...")
+    try:
+        # We tell the free AI to act strictly as a JSON generator
+        safe_prompt = urllib.parse.quote(f"Respond strictly in JSON format. {prompt}")
+        url = f"https://text.pollinations.ai/prompt/{safe_prompt}?model=openai"
+        response = requests.get(url, timeout=40)
+        
+        if response.status_code == 200:
+            script_json = extract_json(response.text)
+            if script_json: 
+                print("✅ Brain 2 Successfully wrote the script!")
+                return script_json
+    except Exception as e:
+        print(f"⚠️ Brain 2 Failed: {e}")
+
+    # Absolute last resort only if the entire internet breaks
+    print("⚠️ ALL AI NETWORKS DOWN. Using Emergency Local Script.")
+    return {
+        "seo": {"title": "The Middle Class Trap Exposed 🚨 | #shorts", "description": "Why you are working harder but getting poorer.", "tags": "finance, money, wealth, investing, crash"},
+        "bgm_keyword": "phonk aggressive",
+        "scenes": [
+            {"text": "The middle class", "keyword": "suburb house cinematic"}, {"text": "is a trap.", "keyword": "mouse trap 4k"},
+            {"text": "While you work", "keyword": "office worker tired"}, {"text": "for a salary,", "keyword": "money counting cinematic"},
+            {"text": "the top 1%", "keyword": "mansion cinematic"}, {"text": "are buying assets.", "keyword": "gold bars 4k"},
+            {"text": "They use debt", "keyword": "credit card cinematic"}, {"text": "to pay zero taxes.", "keyword": "tax form 4k"},
+            {"text": "And inflation?", "keyword": "grocery store prices"}, {"text": "It silently pays off", "keyword": "bank vault 4k"},
+            {"text": "their massive loans.", "keyword": "signing document cinematic"}, {"text": "Wake up.", "keyword": "eyes opening cinematic"},
+            {"text": "Stop saving cash.", "keyword": "burning money 4k"}, {"text": "Start buying assets.", "keyword": "real estate cinematic"},
+            {"text": "Before it's", "keyword": "clock ticking 4k"}, {"text": "too late.", "keyword": "dark storm cinematic"}
+        ]
+    }
 
 def download_bgm(keyword):
     if not keyword: keyword = "phonk aggressive"
@@ -95,7 +138,6 @@ def generate_voice_and_audio(scenes, bgm_keyword):
     full_script = " ".join([str(scene.get('text', '')).strip() for scene in scenes])
     clean_script = full_script.replace('"', "'")
     
-    # Using a more aggressive/engaging voice
     os.system(f'edge-tts --voice "en-US-GuyNeural" --rate=+10% --text "{clean_script}" --write-media voice.mp3')
     
     voice = AudioFileClip("voice.mp3")
@@ -103,7 +145,7 @@ def generate_voice_and_audio(scenes, bgm_keyword):
     
     if bgm_file:
         try:
-            bgm = afx_volumex(AudioFileClip(bgm_file), 0.08) # Loud enough to feel, quiet enough to hear voice
+            bgm = afx_volumex(AudioFileClip(bgm_file), 0.08)
             if bgm.duration < voice.duration:
                 bgm = concatenate_audioclips([bgm] * (int(voice.duration / bgm.duration) + 1))
             bgm = bgm.subclip(0, voice.duration)
@@ -127,7 +169,6 @@ def generate_ai_image(prompt, index):
     return None, None
 
 def download_media(keyword, index):
-    # 🚨 V3 FILTER: Forcing 4K and cinematic parameters on Pixabay
     simple_kw = urllib.parse.quote(f"{str(keyword)} 4k cinematic")
     try:
         if PIXABAY_API_KEY:
@@ -149,7 +190,6 @@ def smart_crop_to_tiktok(clip, target_w=1080, target_h=1920):
         return clip.resize(width=target_w).crop(y_center=clip.h/2, height=target_h)
 
 def add_ken_burns_effect(clip, zoom_ratio=0.04):
-    # 🚨 V3 MOTION ENGINE: Slowly zooms in on images to create high-end movement
     def zoom_in(get_frame, t):
         frame = get_frame(t)
         h, w = frame.shape[:2]
@@ -166,7 +206,6 @@ def create_subtitle_clip(text, duration, target_w, target_h):
     clean_text = re.sub(r'[^\x00-\x7F]+', '', str(text)).strip().upper()
     if len(clean_text) < 1: return None
     try:
-        # 🚨 V3 CAPTIONS: Massive, high-contrast yellow text in the exact center of the screen
         txt_clip = TextClip(clean_text, fontsize=100, color='#FFFF00', stroke_color='black', stroke_width=6, method='caption', size=(target_w - 150, None))
         if txt_clip.get_frame(0).size == 0: return None
         return txt_clip.set_position(('center', 'center')).set_duration(duration)
@@ -190,7 +229,7 @@ def edit_short(audio_file, scenes, target_w=1080, target_h=1920):
             elif m_type == "image" and file:
                 c = ImageClip(file).set_duration(dur_per_scene)
                 c = smart_crop_to_tiktok(c)
-                c = add_ken_burns_effect(c) # Apply cinematic zoom to images
+                c = add_ken_burns_effect(c) 
             else:
                 fallback, _ = generate_ai_image("dark cinematic abstract background", i)
                 c = ImageClip(fallback).set_duration(dur_per_scene) if fallback else ColorClip(size=(target_w, target_h), color=(15, 15, 15)).set_duration(dur_per_scene)
@@ -232,6 +271,11 @@ def upload_to_youtube(video_file, seo):
 def main():
     topic = get_fresh_topic()
     script_data = generate_master_script(topic)
+    
+    if not script_data or not isinstance(script_data, dict):
+        print("⚠️ Absolute failure. Safe Exit.")
+        return
+        
     final_audio = generate_voice_and_audio(script_data.get('scenes', []), script_data.get('bgm_keyword', 'phonk'))
     final_video = edit_short(final_audio, script_data.get('scenes', []))
     upload_to_youtube(final_video, script_data.get('seo', {}))
